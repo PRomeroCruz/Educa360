@@ -2,27 +2,85 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Educa360 Dev</title>
 </head>
 <body>
+
   <h1>Educa360 - Entorno de Desarrollo</h1>
+
+  <!-- Interfaz de prueba -->
+  <div>
+    <h2>Guardar y leer dato de prueba</h2>
+    <input type="text" id="datoInput" placeholder="Escribe un mensaje de prueba...">
+    <button id="btnGuardar">Guardar dato</button>
+
+    <h3>Datos guardados:</h3>
+    <ul id="listaDatos"></ul>
+  </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+      getFirestore, 
+      connectFirestoreEmulator, 
+      collection, 
+      addDoc, 
+      onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID
-    };
+    // 1. Inicializar app con variables de Vite o fallback
+    const env = import.meta?.env || {};
+    const projectId = env.VITE_FIREBASE_PROJECT_ID || 'educa360-dev';
+    const emulatorPort = Number(env.VITE_FIREBASE_EMULATOR_PORT) || 8080;
 
-    const app = initializeApp(firebaseConfig);
+    const app = initializeApp({ projectId });
     const db = getFirestore(app);
 
-    if (import.meta.env.VITE_USE_EMULATOR === 'true') {
-      const port = Number(import.meta.env.VITE_FIREBASE_EMULATOR_PORT) || 8080;
-      connectFirestoreEmulator(db, '127.0.0.1', port);
-      console.log(`✅ Emulador activo en el puerto local ${port} para el proyecto ${import.meta.env.VITE_FIREBASE_PROJECT_ID}`);
-    }
+    // 2. Conectar obligatoriamente al emulador antes de hacer peticiones
+    connectFirestoreEmulator(db, '127.0.0.1', emulatorPort);
+    console.log(`✅ Conectado al emulador local de Firestore (127.0.0.1:${emulatorPort})`);
+
+    const colRef = collection(db, 'tmp_pruebas_borrar');
+
+    // 3. Esperar a que el HTML esté completamente cargado para vincular eventos
+    window.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('btnGuardar');
+      const input = document.getElementById('datoInput');
+      const lista = document.getElementById('listaDatos');
+
+      if (!btn) {
+        console.error("❌ No se encontró el elemento con id='btnGuardar' en el HTML.");
+        return;
+      }
+
+      // Guardar dato al pulsar el botón
+      btn.addEventListener('click', async () => {
+        if (!input.value.trim()) return;
+
+        try {
+          await addDoc(colRef, { 
+            texto: input.value,
+            fecha: new Date().toISOString()
+          });
+          console.log("🎉 Dato guardado localmente en tmp_pruebas_borrar");
+          input.value = '';
+        } catch (err) {
+          console.error("❌ Error al guardar en Firestore:", err);
+        }
+      });
+
+      // Leer en tiempo real y renderizar en la lista
+      onSnapshot(colRef, (snapshot) => {
+        lista.innerHTML = '';
+        snapshot.docs.forEach(doc => {
+          lista.innerHTML += `<li>${doc.data().texto}</li>`;
+        });
+      }, (err) => {
+        console.error("❌ Error en onSnapshot:", err);
+      });
+    });
   </script>
+
 </body>
 </html>
