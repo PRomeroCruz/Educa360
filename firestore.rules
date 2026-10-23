@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Cierre global por defecto
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Contenido del Portal
+    match /contenido_portal/{document} {
+      allow read: if true;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'administrador';
+    }
+
+    // 3. Actos Clínicos e Inmutabilidad
+    match /actos_clinicos/{actoId} {
+      allow read: if request.auth != null && (
+        resource.data.professional_id == request.auth.uid || 
+        resource.data.paciente_id == request.auth.uid
+      );
+      allow create: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'profesional';
+      allow update: if request.auth != null 
+        && resource.data.estado == 'Borrador' 
+        && request.resource.data.estado in ['Borrador', 'Firmado'];
+      allow delete: if false;
+    }
+
+    // 4. Registros de Auditoría
+    match /auditoria/{logId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'administrador';
+      allow update, delete: if false;
+    }
+  }
+}
