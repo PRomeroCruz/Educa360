@@ -75,22 +75,9 @@ export default function DashboardPage() {
     localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
   };
 
+  // Se eliminó la validación de las 24h: Ahora muestra directamente el cuadro de confirmación
   const handleSolicitarCancelacion = (cita) => {
     setWarningMessage(null);
-
-    if (!isAdmin) {
-      const fechaCita = new Date(cita.fecha);
-      const hoy = new Date();
-      const diferenciaTiempo = fechaCita.getTime() - hoy.getTime();
-      const diferenciaHoras = diferenciaTiempo / (1000 * 3600);
-
-      if (diferenciaHoras < 24) {
-        setWarningMessage("⚠️ No se puede cancelar la cita: faltan menos de 24 horas para la fecha prevista.");
-        setCitaACancelar(null);
-        return;
-      }
-    }
-
     setCitaACancelar(cita);
   };
 
@@ -172,7 +159,7 @@ export default function DashboardPage() {
             {citaACancelar && (
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="text-sm text-amber-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                  ¿Estás seguro de que deseas cancelar la cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
                 </p>
                 <div className="flex space-x-2 shrink-0">
                   <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition">
@@ -327,6 +314,7 @@ export default function DashboardPage() {
             </div>
           </>
         )}
+
       </section>
     </main>
   );
