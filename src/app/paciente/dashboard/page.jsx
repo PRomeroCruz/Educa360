@@ -68,14 +68,14 @@ export default function DashboardPage() {
     const nuevoLog = {
       id: Date.now(),
       accion: "ADMIN_CONFIRMAR_CITA",
-      descripcion: `El administrador confirmó la cita de ${citaAConfirmar?.userEmail || "Usuario"} (${citaAConfirmar?.especialidad})`,
+      userEmail: citaAConfirmar?.userEmail || "Administrador",
+      descripcion: `Se confirmó la cita de ${citaAConfirmar?.especialidad || "Desconocida"}`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
     localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
   };
 
-  // Se eliminó la validación de las 24h: Ahora muestra directamente el cuadro de confirmación
   const handleSolicitarCancelacion = (cita) => {
     setWarningMessage(null);
     setCitaACancelar(cita);
@@ -98,7 +98,8 @@ export default function DashboardPage() {
     const nuevoLog = {
       id: Date.now(),
       accion: isAdmin ? "ADMIN_CANCELAR_CITA" : "PACIENTE_ELIMINAR_CITA",
-      descripcion: `Se canceló/eliminó la cita de ${citaACancelar?.userEmail || "Usuario"} (${citaACancelar?.especialidad})`,
+      userEmail: user?.email || "Usuario",
+      descripcion: `Se canceló la cita de ${citaACancelar?.especialidad || "Desconocida"}`,
       fecha: new Date().toLocaleString(),
       tipo: "warning"
     };
@@ -194,7 +195,9 @@ export default function DashboardPage() {
                     <tbody className="divide-y divide-gray-50 text-sm text-gray-800">
                       {citas.map((cita) => (
                         <tr key={cita.id} className="hover:bg-gray-50/50 transition">
-                          <td className="py-3 px-4 font-semibold text-gray-700">{cita.userEmail || "Desconocido"}</td>
+                          <td className="py-3 px-4 font-semibold text-gray-700">
+                            {cita.userEmail || "Paciente sin correo (Antigua)"}
+                          </td>
                           <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
                           <td className="py-3 px-4">{cita.fecha}</td>
                           <td className="py-3 px-4">{cita.hora}</td>
@@ -314,7 +317,6 @@ export default function DashboardPage() {
             </div>
           </>
         )}
-
       </section>
     </main>
   );

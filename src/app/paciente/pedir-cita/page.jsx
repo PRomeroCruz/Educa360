@@ -11,8 +11,7 @@ export default function PedirCitaPage() {
   const [loading, setLoading] = useState(true);
 
   const [especialidad, setEspecialidad] = useState("Medicina General");
-
-  const hoyStr = useMemo(() => {
+    const hoyStr = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -97,7 +96,7 @@ export default function PedirCitaPage() {
     const nuevaCita = {
       id: Date.now(),
       userId: user.uid,
-      userEmail: user.email,
+      userEmail: user.email || "Paciente anónimo",
       especialidad,
       fecha,
       hora,
@@ -108,12 +107,12 @@ export default function PedirCitaPage() {
     const citasExistentes = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
     localStorage.setItem("citas_educa360", JSON.stringify([...citasExistentes, nuevaCita]));
 
-    // Registro de auditoría
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
       id: Date.now(),
       accion: "CREAR_CITA",
-      descripcion: `El usuario ${user.email} solicitó una cita de ${especialidad} para el ${fecha} a las ${hora}`,
+      userEmail: user.email || "Paciente anónimo",
+      descripcion: `Se solicitó una nueva cita de ${especialidad} para el ${fecha} a las ${hora}`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
@@ -197,7 +196,7 @@ export default function PedirCitaPage() {
               
               <div>
                 <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Hora prevista
+                  Hora (Bloques de 15 min)
                 </label>
                 <select
                   required
@@ -241,7 +240,7 @@ export default function PedirCitaPage() {
                   !fecha || !hora || horasFiltradas.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
-                Confirmar Cita
+                Confirmar y Solicitar Cita
               </button>
             </div>
           </form>
