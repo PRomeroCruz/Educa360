@@ -11,7 +11,8 @@ export default function PedirCitaPage() {
   const [loading, setLoading] = useState(true);
 
   const [especialidad, setEspecialidad] = useState("Medicina General");
-    const hoyStr = useMemo(() => {
+  
+  const hoyStr = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -23,6 +24,7 @@ export default function PedirCitaPage() {
   const [hora, setHora] = useState("");
   const [motivo, setMotivo] = useState("");
   const [mensajeExito, setMensajeExito] = useState(false);
+  const [errorValidacion, setErrorValidacion] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -37,7 +39,7 @@ export default function PedirCitaPage() {
     return () => unsubscribe();
   }, [router]);
 
-  const horasDisponibles = useMemo(() => {
+  const bloquesBase = useMemo(() => {
     const lista = [];
 
     for (let h = 9; h < 13; h++) {
@@ -61,35 +63,66 @@ export default function PedirCitaPage() {
 
   const horasFiltradas = useMemo(() => {
     if (!fecha) return [];
-    
-    if (fecha !== hoyStr) {
-      return horasDisponibles;
-    }
+
+    const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+
+    const horasOcupadasEnFecha = citasGuardadas
+      .filter((c) => c.fecha === fecha && (c.estado === "Pendiente" || c.estado === "Aceptada"))
+      .map((c) => c.hora);
 
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
 
-    return horasDisponibles.filter((item) => {
-      const [hStr, mStr] = item.split(":");
-      const h = parseInt(hStr, 10);
-      const m = parseInt(mStr, 10);
+    return bloquesBase.filter((item) => {
+      if (horasOcupadasEnFecha.includes(item)) {
+        return false;
+      }
 
-      if (h > currentHour) return true;
-      if (h === currentHour && m > currentMinute) return true;
-      return false;
+      if (fecha === hoyStr) {
+        const [hStr, mStr] = item.split(":");
+        const h = parseInt(hStr, 10);
+        const m = parseInt(mStr, 10);
+
+        if (h < currentHour || (h === currentHour && m <= currentMinute)) {
+          return false;
+        }
+      }
+
+      return true;
     });
-  }, [fecha, hoyStr, horasDisponibles]);
+  }, [fecha, hoyStr, bloquesBase]);
 
   useEffect(() => {
     setHora("");
+    setErrorValidacion("");
+
+    if (fecha) {
+      const [year, month, day] = fecha.split("-").map(Number);
+      const fechaObj = new Date(year, month - 1, day);
+      const diaSemana = fechaObj.getDay();
+
+      if (diaSemana === 0 || diaSemana === 6) {
+        setErrorValidacion("No se pueden coger citas los fines de semana (sábados y domingos). Por favor, seleccione un día laborable.");
+      }
+    }
   }, [fecha]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    setErrorValidacion("");
 
     if (!fecha || !hora) {
       alert("Por favor, selecciona una fecha y una hora válidas.");
+      return;
+    }
+
+    const [year, month, day] = fecha.split("-").map(Number);
+    const fechaObj = new Date(year, month - 1, day);
+    const diaSemana = fechaObj.getDay();
+
+    if (diaSemana === 0 || diaSemana === 6) {
+      setErrorValidacion("No se pueden coger citas los fines de semana (sábados y domingos).");
       return;
     }
 
@@ -127,49 +160,72 @@ export default function PedirCitaPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-gray-600 text-sm font-medium animate-pulse">Cargando formulario...</p>
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-slate-500 text-sm font-medium tracking-wide animate-pulse">Cargando formulario...</p>
       </div>
     );
   }
 
+  const [y, mo, d] = fecha ? fecha.split("-").map(Number) : [0, 0, 0];
+  const esFinDeSemana = fecha ? (new Date(y, mo - 1, d).getDay() === 0 || new Date(y, mo - 1, d).getDay() === 6) : false;
+
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <header className="max-w-5xl mx-auto bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Educa360 - Solicitud de Cita</h1>
-          <p className="text-xs text-gray-500">Programación de servicios y atención especializada</p>
+    <main className="min-h-screen bg-slate-50 text-slate-900 pb-12">
+      <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              E
+            </div>
+            <div>
+              <h1 className="text-sm font-semibold text-white tracking-wide">
+                Educa360
+              </h1>
+              <p className="text-[11px] text-slate-400">
+                Programación de servicios y atención especializada
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push("/paciente/dashboard")}
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
+          >
+            ← Volver al Panel
+          </button>
         </div>
-        <button
-          onClick={() => router.push("/paciente/dashboard")}
-          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-xs transition"
-        >
-          ← Volver al Panel
-        </button>
       </header>
 
-      <section className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Formulario de Nueva Cita 📅</h2>
-          <p className="text-gray-600 text-sm">Selecciona una fecha y un bloque horario disponible (09:00 a 13:00 y 17:00 a 21:00).</p>
+      <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
+            Módulo de Reservas
+          </span>
+          <h2 className="text-xl font-bold text-slate-900 mt-2">Formulario de Nueva Cita</h2>
+          <p className="text-slate-500 text-xs mt-0.5">Seleccione una fecha (Lunes a Viernes) y un bloque horario disponible (09:00 a 13:00 y 17:00 a 21:00).</p>
         </div>
 
         {mensajeExito && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
-            ¡Cita solicitada con éxito! Redirigiendo a tu panel...
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
+            ¡Cita solicitada con éxito! Redirigiendo a su panel...
           </div>
         )}
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        {errorValidacion && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-xs font-semibold">
+            {errorValidacion}
+          </div>
+        )}
+
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 Especialidad / Servicio
               </label>
               <select
                 value={especialidad}
                 onChange={(e) => setEspecialidad(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800 focus:outline-none focus:border-blue-500"
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 focus:outline-none focus:border-blue-600 transition"
               >
                 <option value="Medicina General">Medicina General</option>
                 <option value="Pediatría">Pediatría</option>
@@ -181,7 +237,7 @@ export default function PedirCitaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Fecha Prevista
                 </label>
                 <input
@@ -190,26 +246,26 @@ export default function PedirCitaPage() {
                   min={hoyStr}
                   value={fecha}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-blue-500 bg-white"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 bg-white transition"
                 />
               </div>
               
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                   Hora (Bloques de 15 min)
                 </label>
                 <select
                   required
                   value={hora}
                   onChange={(e) => setHora(e.target.value)}
-                  disabled={!fecha}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  disabled={!fecha || esFinDeSemana}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 focus:outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:cursor-not-allowed transition"
                 >
                   <option value="" disabled>
-                    {!fecha ? "-- Primero selecciona una fecha --" : "-- Selecciona una hora --"}
+                    {!fecha ? "-- Primero selecciona una fecha --" : esFinDeSemana ? "-- Fines de semana no laborables --" : "-- Selecciona una hora --"}
                   </option>
-                  {fecha && horasFiltradas.length === 0 ? (
-                    <option value="" disabled>No hay horas disponibles para hoy</option>
+                  {fecha && !esFinDeSemana && horasFiltradas.length === 0 ? (
+                    <option value="" disabled>No hay horas disponibles para este día</option>
                   ) : (
                     horasFiltradas.map((h) => (
                       <option key={h} value={h}>{h}</option>
@@ -220,24 +276,24 @@ export default function PedirCitaPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
                 Observaciones o Motivo
               </label>
               <textarea
                 rows="3"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Indica breves detalles o síntomas relevantes..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-blue-500"
+                placeholder="Indique breves detalles o síntomas relevantes..."
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition"
               />
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 type="submit"
-                disabled={!fecha || !hora || horasFiltradas.length === 0}
+                disabled={!fecha || !hora || esFinDeSemana || horasFiltradas.length === 0}
                 className={`px-5 py-2.5 text-white font-semibold text-xs rounded-lg shadow-sm transition ${
-                  !fecha || !hora || horasFiltradas.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                  !fecha || !hora || esFinDeSemana || horasFiltradas.length === 0 ? "bg-slate-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
                 }`}
               >
                 Confirmar y Solicitar Cita
