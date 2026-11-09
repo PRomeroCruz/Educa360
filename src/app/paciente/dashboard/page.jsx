@@ -27,7 +27,15 @@ export default function DashboardPage() {
         setIsAdmin(adminStatus);
         
         const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-        setCitas(citasGuardadas);
+        
+        if (adminStatus) {
+          setCitas(citasGuardadas);
+        } else {
+          const citasUsuario = citasGuardadas.filter(
+            (cita) => cita.userId === currentUser.uid
+          );
+          setCitas(citasUsuario);
+        }
         
         setLoading(false);
       }
@@ -46,12 +54,15 @@ export default function DashboardPage() {
   };
 
   const handleAdminConfirmarCita = (id) => {
-    const citaAConfirmar = citas.find(c => c.id === id);
-    const nuevasCitas = citas.map(cita => 
+    const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+    const citaAConfirmar = citasGlobales.find(c => c.id === id);
+
+    const nuevasCitasGlobales = citasGlobales.map(cita => 
       cita.id === id ? { ...cita, estado: "Confirmada" } : cita
     );
-    setCitas(nuevasCitas);
-    localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitas));
+    
+    localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitasGlobales));
+    setCitas(nuevasCitasGlobales);
 
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
@@ -86,9 +97,15 @@ export default function DashboardPage() {
   const handleConfirmarEliminacion = () => {
     if (!citaACancelar) return;
 
-    const nuevasCitas = citas.filter(cita => cita.id !== citaACancelar.id);
-    setCitas(nuevasCitas);
-    localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitas));
+    const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+    const nuevasCitasGlobales = citasGlobales.filter(cita => cita.id !== citaACancelar.id);
+    localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitasGlobales));
+
+    if (isAdmin) {
+      setCitas(nuevasCitasGlobales);
+    } else {
+      setCitas(nuevasCitasGlobales.filter(c => c.userId === user.uid));
+    }
 
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
@@ -135,6 +152,7 @@ export default function DashboardPage() {
       <section className="max-w-5xl mx-auto space-y-6">
         
         {isAdmin ? (
+          /* VISTA DE ADMINISTRADOR */
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-purple-600">
               <h2 className="text-2xl font-bold text-gray-900 mb-1">
@@ -211,6 +229,7 @@ export default function DashboardPage() {
                         <th className="py-3 px-4">Hora</th>
                         <th className="py-3 px-4">Observaciones</th>
                         <th className="py-3 px-4">Estado</th>
+                        <th className="py-3 px-4">User UID</th>
                         <th className="py-3 px-4 text-center">Acciones de Admin</th>
                       </tr>
                     </thead>
@@ -220,7 +239,7 @@ export default function DashboardPage() {
                           <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
                           <td className="py-3 px-4">{cita.fecha}</td>
                           <td className="py-3 px-4">{cita.hora}</td>
-                          <td className="py-3 px-4 text-gray-500 max-w-[200px] truncate" title={cita.motivo}>
+                          <td className="py-3 px-4 text-gray-500 max-w-[150px] truncate" title={cita.motivo}>
                             {cita.motivo || "Sin observaciones"}
                           </td>
                           <td className="py-3 px-4">
@@ -229,6 +248,9 @@ export default function DashboardPage() {
                             }`}>
                               {cita.estado}
                             </span>
+                          </td>
+                          <td className="py-3 px-4 font-mono text-xs text-gray-400 truncate max-w-[120px]" title={cita.userId}>
+                            {cita.userId || "Desconocido"}
                           </td>
                           <td className="py-3 px-4 text-center space-x-2">
                             {cita.estado !== "Confirmada" && (
@@ -255,6 +277,7 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : (
+          /* VISTA DE PACIENTE */
           <>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600 flex justify-between items-center">
               <div>
