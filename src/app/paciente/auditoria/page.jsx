@@ -79,7 +79,7 @@ export default function AuditoriaPage() {
         {mostrarConfirmacion && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3 animate-fadeIn">
             <p className="text-sm text-red-800 font-medium">
-              ⚠️ ¿Estás seguro de que deseas vaciar todo el registro de auditoría? Esta acción no se puede deshacer.
+              ¿Estás seguro de que deseas vaciar todo el registro de auditoría? Esta acción no se puede deshacer.
             </p>
             <div className="flex space-x-2 shrink-0">
               <button

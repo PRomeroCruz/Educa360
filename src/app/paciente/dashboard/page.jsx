@@ -158,9 +158,9 @@ export default function DashboardPage() {
             </div>
 
             {citaACancelar && (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-sm text-amber-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar la cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-sm text-red-800 font-medium">
+                  ¿Estás seguro de cancelar la cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
                 </p>
                 <div className="flex space-x-2 shrink-0">
                   <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
             </div>
 
             {warningMessage && (
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex justify-between items-center">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm flex justify-between items-center">
                 <span>{warningMessage}</span>
                 <button onClick={() => setWarningMessage(null)} className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition shrink-0 ml-4">
                   Cerrar
@@ -249,9 +249,9 @@ export default function DashboardPage() {
             )}
 
             {citaACancelar && (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-sm text-amber-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-sm text-red-800 font-medium">
+                  ⚠️ ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
                 </p>
                 <div className="flex space-x-2 shrink-0">
                   <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition">

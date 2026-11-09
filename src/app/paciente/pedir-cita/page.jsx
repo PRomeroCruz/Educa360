@@ -156,7 +156,7 @@ export default function PedirCitaPage() {
 
         {mensajeExito && (
           <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
-            ✅ ¡Cita solicitada con éxito! Redirigiendo a tu panel...
+            ¡Cita solicitada con éxito! Redirigiendo a tu panel...
           </div>
         )}
 
