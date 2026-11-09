@@ -40,6 +40,7 @@ export default function PedirCitaPage() {
     const nuevaCita = {
       id: Date.now(),
       userId: user.uid,
+      userEmail: user.email || "Paciente anónimo",
       especialidad,
       fecha,
       hora,
@@ -54,7 +55,7 @@ export default function PedirCitaPage() {
     const nuevoLog = {
       id: Date.now(),
       accion: "CREAR_CITA",
-      descripcion: `Se solicitó una cita de ${especialidad} para el ${fecha} a las ${hora}`,
+      descripcion: `El usuario ${user.email} solicitó una cita de ${especialidad} para el ${fecha} a las ${hora}`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
@@ -91,25 +92,19 @@ export default function PedirCitaPage() {
       </header>
 
       <section className="max-w-5xl mx-auto space-y-6">
-        
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600">
-          <h2 className="text-xl font-bold text-gray-900 mb-1">
-            Formulario de Nueva Cita 📅
-          </h2>
-          <p className="text-gray-600 text-sm">
-            Completa los detalles a continuación para solicitar tu cita en el sistema. Quedará en estado pendiente de validación.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Formulario de Nueva Cita 📅</h2>
+          <p className="text-gray-600 text-sm">Completa los detalles a continuación para solicitar tu cita en el sistema.</p>
         </div>
 
         {mensajeExito && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium animate-fadeIn">
+          <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-green-800 text-sm font-medium">
             ✅ ¡Cita solicitada con éxito! Redirigiendo a tu panel...
           </div>
         )}
 
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <form onSubmit={handleSubmit} className="space-y-4">
-            
             <div>
               <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                 Especialidad / Servicio
@@ -117,7 +112,7 @@ export default function PedirCitaPage() {
               <select
                 value={especialidad}
                 onChange={(e) => setEspecialidad(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 bg-white text-gray-800"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800"
               >
                 <option value="Medicina General">Medicina General</option>
                 <option value="Pediatría">Pediatría</option>
@@ -129,50 +124,40 @@ export default function PedirCitaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Fecha Prevista
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Fecha Prevista</label>
                 <input
                   type="date"
                   required
                   value={fecha}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-gray-800"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Hora
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Hora</label>
                 <input
                   type="time"
                   required
                   value={hora}
                   onChange={(e) => setHora(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-gray-800"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                Observaciones o Motivo (Opcional)
-              </label>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Observaciones o Motivo</label>
               <textarea
                 rows="3"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Indica breves detalles o síntomas relevantes..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-gray-800"
+                placeholder="Indica breves detalles..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
               />
             </div>
 
             <div className="pt-2 flex justify-end">
-              <button
-                type="submit"
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
-              >
+              <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
                 Confirmar y Solicitar Cita
               </button>
             </div>

@@ -68,7 +68,7 @@ export default function DashboardPage() {
     const nuevoLog = {
       id: Date.now(),
       accion: "ADMIN_CONFIRMAR_CITA",
-      descripcion: `El administrador confirmó la cita de ${citaAConfirmar?.especialidad || "Desconocida"}`,
+      descripcion: `El administrador confirmó la cita de ${citaAConfirmar?.userEmail || "Usuario"} (${citaAConfirmar?.especialidad})`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
@@ -111,7 +111,7 @@ export default function DashboardPage() {
     const nuevoLog = {
       id: Date.now(),
       accion: isAdmin ? "ADMIN_CANCELAR_CITA" : "PACIENTE_ELIMINAR_CITA",
-      descripcion: `Se canceló/eliminó la cita de ${citaACancelar?.especialidad || "Desconocida"}`,
+      descripcion: `Se canceló/eliminó la cita de ${citaACancelar?.userEmail || "Usuario"} (${citaACancelar?.especialidad})`,
       fecha: new Date().toLocaleString(),
       tipo: "warning"
     };
@@ -152,61 +152,33 @@ export default function DashboardPage() {
       <section className="max-w-5xl mx-auto space-y-6">
         
         {isAdmin ? (
-          /* VISTA DE ADMINISTRADOR */
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-purple-600">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                Panel de Administración ⚙️
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Desde aquí puedes supervisar todas las citas solicitadas en la plataforma, revisar sus observaciones, aceptarlas o cancelarlas.
-              </p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">Panel de Administración ⚙️</h2>
+              <p className="text-gray-600 text-sm">Desde aquí puedes supervisar todas las citas solicitadas por los usuarios.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div 
-                onClick={() => router.push("/paciente/security-role")}
-                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-purple-500 cursor-pointer transition group"
-              >
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="p-2 bg-purple-50 text-purple-600 rounded-lg text-lg">🔒</span>
-                  <h3 className="font-bold text-gray-900 text-base group-hover:text-purple-600 transition">
-                    Seguridad y Roles
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-500">Supervisa la validación de tokens firmados por el servidor.</p>
+              <div onClick={() => router.push("/paciente/security-role")} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-purple-500 cursor-pointer transition">
+                <h3 className="font-bold text-gray-900 text-base mb-1">🔒 Seguridad y Roles</h3>
+                <p className="text-xs text-gray-500">Supervisa la validación de tokens.</p>
               </div>
-
-              <div 
-                onClick={() => router.push("/paciente/auditoria")}
-                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-indigo-500 cursor-pointer transition group"
-              >
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-lg">🛡️</span>
-                  <h3 className="font-bold text-gray-900 text-base group-hover:text-indigo-600 transition">
-                    Registro de Auditoría
-                  </h3>
-                </div>
-                <p className="text-xs text-gray-500">Consulta el histórico de eventos y trazabilidad global.</p>
+              <div onClick={() => router.push("/paciente/auditoria")} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-indigo-500 cursor-pointer transition">
+                <h3 className="font-bold text-gray-900 text-base mb-1">🛡️ Registro de Auditoría</h3>
+                <p className="text-xs text-gray-500">Consulta el histórico de eventos.</p>
               </div>
             </div>
 
             {citaACancelar && (
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="text-sm text-amber-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar la cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
                 </p>
                 <div className="flex space-x-2 shrink-0">
-                  <button
-                    onClick={handleConfirmarEliminacion}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition"
-                  >
+                  <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition">
                     Sí, cancelar cita
                   </button>
-                  <button
-                    onClick={() => setCitaACancelar(null)}
-                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition"
-                  >
+                  <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition">
                     Volver
                   </button>
                 </div>
@@ -224,24 +196,21 @@ export default function DashboardPage() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+                        <th className="py-3 px-4">Paciente (Email)</th>
                         <th className="py-3 px-4">Especialidad</th>
                         <th className="py-3 px-4">Fecha</th>
                         <th className="py-3 px-4">Hora</th>
-                        <th className="py-3 px-4">Observaciones</th>
                         <th className="py-3 px-4">Estado</th>
-                        <th className="py-3 px-4">User UID</th>
-                        <th className="py-3 px-4 text-center">Acciones de Admin</th>
+                        <th className="py-3 px-4 text-center">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50 text-sm text-gray-800">
                       {citas.map((cita) => (
                         <tr key={cita.id} className="hover:bg-gray-50/50 transition">
+                          <td className="py-3 px-4 font-semibold text-gray-700">{cita.userEmail || "Desconocido"}</td>
                           <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
                           <td className="py-3 px-4">{cita.fecha}</td>
                           <td className="py-3 px-4">{cita.hora}</td>
-                          <td className="py-3 px-4 text-gray-500 max-w-[150px] truncate" title={cita.motivo}>
-                            {cita.motivo || "Sin observaciones"}
-                          </td>
                           <td className="py-3 px-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
                               cita.estado === "Confirmada" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
@@ -249,22 +218,13 @@ export default function DashboardPage() {
                               {cita.estado}
                             </span>
                           </td>
-                          <td className="py-3 px-4 font-mono text-xs text-gray-400 truncate max-w-[120px]" title={cita.userId}>
-                            {cita.userId || "Desconocido"}
-                          </td>
                           <td className="py-3 px-4 text-center space-x-2">
                             {cita.estado !== "Confirmada" && (
-                              <button
-                                onClick={() => handleAdminConfirmarCita(cita.id)}
-                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition"
-                              >
+                              <button onClick={() => handleAdminConfirmarCita(cita.id)} className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition">
                                 Aceptar
                               </button>
                             )}
-                            <button
-                              onClick={() => handleSolicitarCancelacion(cita)}
-                              className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition"
-                            >
+                            <button onClick={() => handleSolicitarCancelacion(cita)} className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition">
                               Cancelar
                             </button>
                           </td>
@@ -281,17 +241,10 @@ export default function DashboardPage() {
           <>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600 flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                  ¡Hola, {user?.displayName || "Paciente"}! 👋
-                </h2>
-                <p className="text-gray-600 text-sm">
-                  Bienvenido a tu espacio personal en **Educa360**. Aquí puedes gestionar tus citas activas.
-                </p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">¡Hola, {user?.displayName || "Paciente"}! 👋</h2>
+                <p className="text-gray-600 text-sm">Gestiona tus citas personales en Educa360.</p>
               </div>
-              <button
-                onClick={() => router.push("/paciente/pedir-cita")}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
-              >
+              <button onClick={() => router.push("/paciente/pedir-cita")} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition">
                 + Pedir Cita Nueva
               </button>
             </div>
@@ -299,10 +252,7 @@ export default function DashboardPage() {
             {warningMessage && (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex justify-between items-center">
                 <span>{warningMessage}</span>
-                <button 
-                  onClick={() => setWarningMessage(null)} 
-                  className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition shrink-0 ml-4"
-                >
+                <button onClick={() => setWarningMessage(null)} className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition shrink-0 ml-4">
                   Cerrar
                 </button>
               </div>
@@ -311,19 +261,13 @@ export default function DashboardPage() {
             {citaACancelar && (
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
                 <p className="text-sm text-amber-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
                 </p>
                 <div className="flex space-x-2 shrink-0">
-                  <button
-                    onClick={handleConfirmarEliminacion}
-                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition"
-                  >
+                  <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition">
                     Sí, cancelar cita
                   </button>
-                  <button
-                    onClick={() => setCitaACancelar(null)}
-                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition"
-                  >
+                  <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition">
                     Volver
                   </button>
                 </div>
@@ -370,11 +314,8 @@ export default function DashboardPage() {
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center">
-                            <button 
-                              onClick={() => handleSolicitarCancelacion(cita)}
-                              className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition"
-                            >
-                              Cancelar
+                            <button onClick={() => handleSolicitarCancelacion(cita)} className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition">
+                              Anular
                             </button>
                           </td>
                         </tr>
