@@ -41,7 +41,6 @@ export default function PedirCitaPage() {
     setSubmitting(true);
     setSuccessMessage("");
 
-    // 1. Crear el objeto de la nueva cita
     const nuevaCita = {
       id: Date.now(),
       especialidad: formData.especialidad,
@@ -51,22 +50,19 @@ export default function PedirCitaPage() {
       motivo: formData.motivo,
     };
 
-    // 2. Guardar la cita en localStorage
     const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
     localStorage.setItem("citas_educa360", JSON.stringify([nuevaCita, ...citasGuardadas]));
 
-    // 3. Registrar la acción automáticamente en la Auditoría
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
       id: Date.now() + 1,
       accion: "CREAR_CITA",
-      descripcion: `Solicitud de cita para ${formData.especialidad} (${formData.fecha} a las ${formData.hora})`,
+      descripcion: `Solicitud de cita para ${formData.especialidad}`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
     localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
 
-    // 4. Feedback visual y redirección
     setTimeout(() => {
       setSubmitting(false);
       setSuccessMessage("¡Cita solicitada con éxito! Redirigiendo al panel...");

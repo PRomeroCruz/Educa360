@@ -64,7 +64,6 @@ export default function AuditoriaPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
-      {/* Barra superior */}
       <header className="max-w-5xl mx-auto bg-white p-4 rounded-xl shadow-md flex justify-between items-center mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Educa360 - Panel de Auditoría</h1>
@@ -73,23 +72,14 @@ export default function AuditoriaPage() {
         <div className="flex space-x-2">
           <button
             onClick={() => router.push("/paciente/dashboard")}
-            className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold rounded-md text-sm transition"
-          >
+            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-xs transition"
+            >
             ← Volver al Dashboard
-          </button>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md text-sm transition"
-          >
-            Cerrar Sesión
-          </button>
+            </button>
         </div>
       </header>
 
-      {/* Contenido principal */}
       <section className="max-w-5xl mx-auto space-y-6">
-        
-        {/* Descripción informativa */}
         <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-indigo-600">
           <h2 className="text-xl font-bold text-gray-900 mb-1">
             Registro de Actividad y Seguridad 🛡️
@@ -99,7 +89,6 @@ export default function AuditoriaPage() {
           </p>
         </div>
 
-        {/* Tabla de Logs de Auditoría */}
         <div className="bg-white p-6 rounded-xl shadow-md">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-gray-900">Historial de Eventos ({logs.length})</h3>
@@ -112,8 +101,6 @@ export default function AuditoriaPage() {
               </button>
             )}
           </div>
-
-          {/* Banner de confirmación integrado */}
           {showConfirm && (
             <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
               <p className="text-sm text-amber-800 font-medium">
@@ -147,7 +134,7 @@ export default function AuditoriaPage() {
                   <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase">
                     <th className="py-3 px-4">Tipo de Acción</th>
                     <th className="py-3 px-4">Descripción del Suceso</th>
-                    <th className="py-3 px-4">Fecha y Hora Exacta</th>
+                    <th className="py-3 px-4">Fecha y Hora</th>
                     <th className="py-3 px-4">Usuario (UID)</th>
                   </tr>
                 </thead>
@@ -171,7 +158,6 @@ export default function AuditoriaPage() {
             </div>
           )}
         </div>
-
       </section>
     </main>
   );

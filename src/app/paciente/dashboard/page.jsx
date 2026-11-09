@@ -5,18 +5,26 @@ import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 
-export default function PacienteDashboardPage() {
+export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [citas, setCitas] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  
+  const [warningMessage, setWarningMessage] = useState(null);
+  const [citaACancelar, setCitaACancelar] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
         router.push("/login");
       } else {
         setUser(currentUser);
+        
+        const idTokenResult = await currentUser.getIdTokenResult(true);
+        const adminStatus = idTokenResult.claims.role === "admin";
+        setIsAdmin(adminStatus);
         
         const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
         setCitas(citasGuardadas);
@@ -37,17 +45,8 @@ export default function PacienteDashboardPage() {
     }
   };
 
-  const handlePedirCita = () => {
-    router.push("/paciente/pedir-cita");
-  };
-
-  const handleVerAuditoria = () => {
-    router.push("/paciente/auditoria");
-  };
-
-  const handleConfirmarCita = (id) => {
+  const handleAdminConfirmarCita = (id) => {
     const citaAConfirmar = citas.find(c => c.id === id);
-
     const nuevasCitas = citas.map(cita => 
       cita.id === id ? { ...cita, estado: "Confirmada" } : cita
     );
@@ -57,182 +56,313 @@ export default function PacienteDashboardPage() {
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
       id: Date.now(),
-      accion: "CONFIRMAR_CITA",
-      descripcion: `Se confirmó la cita de ${citaAConfirmar?.especialidad || "Desconocida"}`,
+      accion: "ADMIN_CONFIRMAR_CITA",
+      descripcion: `El administrador confirmó la cita de ${citaAConfirmar?.especialidad || "Desconocida"}`,
       fecha: new Date().toLocaleString(),
       tipo: "success"
     };
     localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
   };
 
-  const handleEliminarCita = (id) => {
-    const citaAEliminar = citas.find(c => c.id === id);
+  const handleSolicitarCancelacion = (cita) => {
+    setWarningMessage(null);
 
-    const nuevasCitas = citas.filter(cita => cita.id !== id);
+    if (!isAdmin) {
+      const fechaCita = new Date(cita.fecha);
+      const hoy = new Date();
+      const diferenciaTiempo = fechaCita.getTime() - hoy.getTime();
+      const diferenciaHoras = diferenciaTiempo / (1000 * 3600);
+
+      if (diferenciaHoras < 24) {
+        setWarningMessage("⚠️ No se puede cancelar la cita: faltan menos de 24 horas para la fecha prevista.");
+        setCitaACancelar(null);
+        return;
+      }
+    }
+
+    setCitaACancelar(cita);
+  };
+
+  const handleConfirmarEliminacion = () => {
+    if (!citaACancelar) return;
+
+    const nuevasCitas = citas.filter(cita => cita.id !== citaACancelar.id);
     setCitas(nuevasCitas);
     localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitas));
 
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
       id: Date.now(),
-      accion: "ELIMINAR_CITA",
-      descripcion: `Se eliminó / canceló la cita de ${citaAEliminar?.especialidad || "Desconocida"}`,
+      accion: isAdmin ? "ADMIN_CANCELAR_CITA" : "PACIENTE_ELIMINAR_CITA",
+      descripcion: `Se canceló/eliminó la cita de ${citaACancelar?.especialidad || "Desconocida"}`,
       fecha: new Date().toLocaleString(),
       tipo: "warning"
     };
-    
-    const logsActualizados = [nuevoLog, ...logsActuales];
-    localStorage.setItem("logs_educa360", JSON.stringify(logsActualizados));
+    localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
+
+    setCitaACancelar(null);
   };
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-black text-lg font-medium">Cargando panel del paciente...</p>
+        <p className="text-gray-600 text-sm font-medium animate-pulse">Cargando panel...</p>
       </div>
     );
   }
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
-      {/* Barra superior */}
-      <header className="max-w-5xl mx-auto bg-white p-4 rounded-xl shadow-md flex justify-between items-center mb-6">
+      <header className="max-w-5xl mx-auto bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-wrap justify-between items-center gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Educa360 - Panel de Paciente</h1>
-          <p className="text-xs text-gray-500">Gestión y Seguimiento Académico y Personal</p>
+          <h1 className="text-lg font-bold text-gray-900">
+            {isAdmin ? "Educa360 - Panel de Administración" : "Educa360 - Panel de Paciente"}
+          </h1>
+          <p className="text-xs text-gray-500">
+            {isAdmin ? "Control centralizado y gestión de citas del sistema" : "Gestión y Seguimiento Académico y Personal"}
+          </p>
         </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={handleVerAuditoria}
-            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-md transition duration-200 text-sm focus:outline-none"
-          >
-            🛡️ Ver Auditoría
-          </button>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleLogout}
-            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md transition duration-200 text-sm focus:outline-none"
+            className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg text-xs transition shadow-sm"
           >
             Cerrar Sesión
           </button>
         </div>
       </header>
 
-      {/* Contenido principal */}
       <section className="max-w-5xl mx-auto space-y-6">
         
-        {/* Saludo */}
-        <div className="bg-white p-6 rounded-xl shadow-md border-l-4 border-blue-600 flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">
-              ¡Hola, {user?.displayName || "Paciente"}! 👋
-            </h2>
-            <p className="text-gray-700 text-sm">
-              Bienvenido a tu espacio personal en **Educa360**. Aquí puedes gestionar tus citas reales.
-            </p>
-          </div>
-          <button
-            onClick={handlePedirCita}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-md shadow transition"
-          >
-            + Pedir Cita Nueva
-          </button>
-        </div>
+        {isAdmin ? (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-purple-600">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                Panel de Administración ⚙️
+              </h2>
+              <p className="text-gray-600 text-sm">
+                Desde aquí puedes supervisar todas las citas solicitadas en la plataforma, revisar sus observaciones, aceptarlas o cancelarlas.
+              </p>
+            </div>
 
-        {/* Tarjetas de Información */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Datos Personales
-            </h3>
-            <div className="space-y-2 text-sm text-black">
-              <p><strong>Nombre:</strong> {user?.displayName || "No especificado"}</p>
-              <p><strong>Correo electrónico:</strong> {user?.email}</p>
-              <p><strong>Identificador (UID):</strong> <span className="font-mono text-xs">{user?.uid}</span></p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div 
+                onClick={() => router.push("/paciente/security-role")}
+                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-purple-500 cursor-pointer transition group"
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="p-2 bg-purple-50 text-purple-600 rounded-lg text-lg">🔒</span>
+                  <h3 className="font-bold text-gray-900 text-base group-hover:text-purple-600 transition">
+                    Seguridad y Roles
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500">Supervisa la validación de tokens firmados por el servidor.</p>
+              </div>
+
+              <div 
+                onClick={() => router.push("/paciente/auditoria")}
+                className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:border-indigo-500 cursor-pointer transition group"
+              >
+                <div className="flex items-center space-x-3 mb-2">
+                  <span className="p-2 bg-indigo-50 text-indigo-600 rounded-lg text-lg">🛡️</span>
+                  <h3 className="font-bold text-gray-900 text-base group-hover:text-indigo-600 transition">
+                    Registro de Auditoría
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500">Consulta el histórico de eventos y trazabilidad global.</p>
+              </div>
+            </div>
+
+            {citaACancelar && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-sm text-amber-900 font-medium">
+                  ¿Estás seguro de que deseas cancelar la cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                </p>
+                <div className="flex space-x-2 shrink-0">
+                  <button
+                    onClick={handleConfirmarEliminacion}
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition"
+                  >
+                    Sí, cancelar cita
+                  </button>
+                  <button
+                    onClick={() => setCitaACancelar(null)}
+                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition"
+                  >
+                    Volver
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-base font-bold text-gray-900 mb-4">Gestión Global de Citas del Sistema</h3>
+              {citas.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm border border-dashed border-gray-200 rounded-lg">
+                  No hay citas registradas en el sistema.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+                        <th className="py-3 px-4">Especialidad</th>
+                        <th className="py-3 px-4">Fecha</th>
+                        <th className="py-3 px-4">Hora</th>
+                        <th className="py-3 px-4">Observaciones</th>
+                        <th className="py-3 px-4">Estado</th>
+                        <th className="py-3 px-4 text-center">Acciones de Admin</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 text-sm text-gray-800">
+                      {citas.map((cita) => (
+                        <tr key={cita.id} className="hover:bg-gray-50/50 transition">
+                          <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
+                          <td className="py-3 px-4">{cita.fecha}</td>
+                          <td className="py-3 px-4">{cita.hora}</td>
+                          <td className="py-3 px-4 text-gray-500 max-w-[200px] truncate" title={cita.motivo}>
+                            {cita.motivo || "Sin observaciones"}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              cita.estado === "Confirmada" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
+                            }`}>
+                              {cita.estado}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center space-x-2">
+                            {cita.estado !== "Confirmada" && (
+                              <button
+                                onClick={() => handleAdminConfirmarCita(cita.id)}
+                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition"
+                              >
+                                Aceptar
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleSolicitarCancelacion(cita)}
+                              className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition"
+                            >
+                              Cancelar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Estado de Verificación
-            </h3>
-            <div className="flex items-center space-x-2">
-              <span className={`h-3 w-3 rounded-full ${user?.emailVerified ? "bg-green-500" : "bg-yellow-500"}`}></span>
-              <span className="text-black font-medium">
-                {user?.emailVerified ? "Cuenta Verificada" : "Verificación Pendiente"}
-              </span>
+        ) : (
+          <>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600 flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                  ¡Hola, {user?.displayName || "Paciente"}! 👋
+                </h2>
+                <p className="text-gray-600 text-sm">
+                  Bienvenido a tu espacio personal en **Educa360**. Aquí puedes gestionar tus citas activas.
+                </p>
+              </div>
+              <button
+                onClick={() => router.push("/paciente/pedir-cita")}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+              >
+                + Pedir Cita Nueva
+              </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              {user?.emailVerified 
-                ? "Tu cuenta está activa y validada correctamente." 
-                : "Por favor, revisa tu bandeja de entrada para activar por completo tu cuenta."}
-            </p>
-          </div>
-        </div>
 
-        {/* Tabla Dinámica de Citas */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Mis Citas Solicitadas</h3>
-            <span className="text-xs text-gray-500">{citas.length} cita(s) registrada(s)</span>
-          </div>
+            {warningMessage && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex justify-between items-center">
+                <span>{warningMessage}</span>
+                <button 
+                  onClick={() => setWarningMessage(null)} 
+                  className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition shrink-0 ml-4"
+                >
+                  Cerrar
+                </button>
+              </div>
+            )}
 
-          {citas.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm border border-dashed border-gray-200 rounded-lg">
-              No tienes ninguna cita programada todavía. Pulsa en <strong>"+ Pedir Cita Nueva"</strong> para añadir una.
+            {citaACancelar && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-sm text-amber-900 font-medium">
+                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                </p>
+                <div className="flex space-x-2 shrink-0">
+                  <button
+                    onClick={handleConfirmarEliminacion}
+                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition"
+                  >
+                    Sí, cancelar cita
+                  </button>
+                  <button
+                    onClick={() => setCitaACancelar(null)}
+                    className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-md transition"
+                  >
+                    Volver
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-base font-bold text-gray-900">Mis Citas Solicitadas</h3>
+                <span className="text-xs text-gray-500">{citas.length} cita(s) registrada(s)</span>
+              </div>
+
+              {citas.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm border border-dashed border-gray-200 rounded-lg">
+                  No tienes ninguna cita programada todavía.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs text-gray-400 uppercase">
+                        <th className="py-3 px-4">Especialidad</th>
+                        <th className="py-3 px-4">Fecha</th>
+                        <th className="py-3 px-4">Hora</th>
+                        <th className="py-3 px-4">Observaciones</th>
+                        <th className="py-3 px-4">Estado</th>
+                        <th className="py-3 px-4 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 text-sm text-gray-800">
+                      {citas.map((cita) => (
+                        <tr key={cita.id} className="hover:bg-gray-50/50 transition">
+                          <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
+                          <td className="py-3 px-4">{cita.fecha}</td>
+                          <td className="py-3 px-4">{cita.hora}</td>
+                          <td className="py-3 px-4 text-gray-500 max-w-[200px] truncate" title={cita.motivo}>
+                            {cita.motivo || "Sin observaciones"}
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              cita.estado === "Confirmada" ? "bg-green-50 text-green-700" : "bg-yellow-50 text-yellow-700"
+                            }`}>
+                              {cita.estado}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button 
+                              onClick={() => handleSolicitarCancelacion(cita)}
+                              className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs rounded-md transition"
+                            >
+                              Cancelar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase">
-                    <th className="py-3 px-4">Especialidad</th>
-                    <th className="py-3 px-4">Fecha</th>
-                    <th className="py-3 px-4">Hora</th>
-                    <th className="py-3 px-4">Motivo</th>
-                    <th className="py-3 px-4">Estado</th>
-                    <th className="py-3 px-4 text-center">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 text-sm text-black">
-                  {citas.map((cita) => (
-                    <tr key={cita.id} className="hover:bg-gray-50 transition">
-                      <td className="py-3 px-4 font-medium">{cita.especialidad}</td>
-                      <td className="py-3 px-4">{cita.fecha}</td>
-                      <td className="py-3 px-4">{cita.hora}</td>
-                      <td className="py-3 px-4 text-gray-600">{cita.motivo || "Sin observaciones"}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          cita.estado === "Confirmada" 
-                            ? "bg-green-100 text-green-700" 
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}>
-                          {cita.estado}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center space-x-2">
-                        {cita.estado !== "Confirmada" && (
-                          <button 
-                            onClick={() => handleConfirmarCita(cita.id)}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition"
-                          >
-                            Confirmar
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleEliminarCita(cita.id)}
-                          className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-xs rounded transition"
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
+          </>
+        )}
       </section>
     </main>
   );
