@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
@@ -11,8 +11,17 @@ export default function PedirCitaPage() {
   const [loading, setLoading] = useState(true);
 
   const [especialidad, setEspecialidad] = useState("Medicina General");
+
+  const hoyStr = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
+
   const [fecha, setFecha] = useState("");
-  const [hora, setHora] = useState("09:00");
+  const [hora, setHora] = useState("");
   const [motivo, setMotivo] = useState("");
   const [mensajeExito, setMensajeExito] = useState(false);
 
@@ -29,6 +38,54 @@ export default function PedirCitaPage() {
     return () => unsubscribe();
   }, [router]);
 
+  const horasDisponibles = useMemo(() => {
+    const lista = [];
+
+    for (let h = 9; h < 13; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const horaFormatted = String(h).padStart(2, "0");
+        const minFormatted = String(m).padStart(2, "0");
+        lista.push(`${horaFormatted}:${minFormatted}`);
+      }
+    }
+
+    for (let h = 17; h < 21; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const horaFormatted = String(h).padStart(2, "0");
+        const minFormatted = String(m).padStart(2, "0");
+        lista.push(`${horaFormatted}:${minFormatted}`);
+      }
+    }
+
+    return lista;
+  }, []);
+
+  const horasFiltradas = useMemo(() => {
+    if (!fecha) return [];
+    
+    if (fecha !== hoyStr) {
+      return horasDisponibles;
+    }
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    return horasDisponibles.filter((item) => {
+      const [hStr, mStr] = item.split(":");
+      const h = parseInt(hStr, 10);
+      const m = parseInt(mStr, 10);
+
+      if (h > currentHour) return true;
+      if (h === currentHour && m > currentMinute) return true;
+      return false;
+    });
+  }, [fecha, hoyStr, horasDisponibles]);
+
+  useEffect(() => {
+    setHora("");
+  }, [fecha]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -40,7 +97,7 @@ export default function PedirCitaPage() {
     const nuevaCita = {
       id: Date.now(),
       userId: user.uid,
-      userEmail: user.email || "Paciente anónimo",
+      userEmail: user.email,
       especialidad,
       fecha,
       hora,
@@ -51,6 +108,7 @@ export default function PedirCitaPage() {
     const citasExistentes = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
     localStorage.setItem("citas_educa360", JSON.stringify([...citasExistentes, nuevaCita]));
 
+    // Registro de auditoría
     const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
     const nuevoLog = {
       id: Date.now(),
@@ -94,7 +152,7 @@ export default function PedirCitaPage() {
       <section className="max-w-5xl mx-auto space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-600">
           <h2 className="text-xl font-bold text-gray-900 mb-1">Formulario de Nueva Cita 📅</h2>
-          <p className="text-gray-600 text-sm">Completa los detalles a continuación para solicitar tu cita en el sistema.</p>
+          <p className="text-gray-600 text-sm">Selecciona una fecha y un bloque horario disponible (09:00 a 13:00 y 17:00 a 21:00).</p>
         </div>
 
         {mensajeExito && (
@@ -112,7 +170,7 @@ export default function PedirCitaPage() {
               <select
                 value={especialidad}
                 onChange={(e) => setEspecialidad(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800"
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800 focus:outline-none focus:border-blue-500"
               >
                 <option value="Medicina General">Medicina General</option>
                 <option value="Pediatría">Pediatría</option>
@@ -124,41 +182,66 @@ export default function PedirCitaPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Fecha Prevista</label>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Fecha Prevista
+                </label>
                 <input
                   type="date"
                   required
+                  min={hoyStr}
                   value={fecha}
                   onChange={(e) => setFecha(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-blue-500 bg-white"
                 />
               </div>
+              
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Hora</label>
-                <input
-                  type="time"
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Hora prevista
+                </label>
+                <select
                   required
                   value={hora}
                   onChange={(e) => setHora(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
-                />
+                  disabled={!fecha}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white text-gray-800 focus:outline-none focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  <option value="" disabled>
+                    {!fecha ? "-- Primero selecciona una fecha --" : "-- Selecciona una hora --"}
+                  </option>
+                  {fecha && horasFiltradas.length === 0 ? (
+                    <option value="" disabled>No hay horas disponibles para hoy</option>
+                  ) : (
+                    horasFiltradas.map((h) => (
+                      <option key={h} value={h}>{h}</option>
+                    ))
+                  )}
+                </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">Observaciones o Motivo</label>
+              <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                Observaciones o Motivo
+              </label>
               <textarea
                 rows="3"
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
-                placeholder="Indica breves detalles..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800"
+                placeholder="Indica breves detalles o síntomas relevantes..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-800 focus:outline-none focus:border-blue-500"
               />
             </div>
 
             <div className="pt-2 flex justify-end">
-              <button type="submit" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition">
-                Confirmar y Solicitar Cita
+              <button
+                type="submit"
+                disabled={!fecha || !hora || horasFiltradas.length === 0}
+                className={`px-5 py-2.5 text-white font-semibold text-xs rounded-lg shadow-sm transition ${
+                  !fecha || !hora || horasFiltradas.length === 0 ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                Confirmar Cita
               </button>
             </div>
           </form>
