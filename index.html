@@ -9,7 +9,6 @@
 
   <h1>Educa360 - Entorno de Desarrollo</h1>
 
-  <!-- Interfaz de prueba -->
   <div>
     <h2>Guardar y leer dato de prueba</h2>
     <input type="text" id="datoInput" placeholder="Escribe un mensaje de prueba...">
@@ -29,7 +28,6 @@
       onSnapshot 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 1. Inicializar app con variables de Vite o fallback
     const env = import.meta?.env || {};
     const projectId = env.VITE_FIREBASE_PROJECT_ID || 'educa360-dev';
     const emulatorPort = Number(env.VITE_FIREBASE_EMULATOR_PORT) || 8080;
@@ -37,13 +35,11 @@
     const app = initializeApp({ projectId });
     const db = getFirestore(app);
 
-    // 2. Conectar obligatoriamente al emulador antes de hacer peticiones
     connectFirestoreEmulator(db, '127.0.0.1', emulatorPort);
     console.log(`✅ Conectado al emulador local de Firestore (127.0.0.1:${emulatorPort})`);
 
     const colRef = collection(db, 'tmp_pruebas_borrar');
 
-    // 3. Esperar a que el HTML esté completamente cargado para vincular eventos
     window.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('btnGuardar');
       const input = document.getElementById('datoInput');
@@ -54,7 +50,6 @@
         return;
       }
 
-      // Guardar dato al pulsar el botón
       btn.addEventListener('click', async () => {
         if (!input.value.trim()) return;
 
@@ -70,7 +65,6 @@
         }
       });
 
-      // Leer en tiempo real y renderizar en la lista
       onSnapshot(colRef, (snapshot) => {
         lista.innerHTML = '';
         snapshot.docs.forEach(doc => {
