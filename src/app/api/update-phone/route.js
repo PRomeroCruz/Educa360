@@ -8,11 +8,11 @@ if (!getApps().length) {
     initializeApp({
         projectId: "educa360-dev",
     });
-    }
+}
 
-    export async function POST(request) {
+export async function POST(request) {
     try {
-        const { uid, telefono } = await request.json();
+        const { uid, telefono, role } = await request.json();
 
         if (!uid || !telefono) {
         return NextResponse.json({ error: "Faltan datos obligatorios" }, { status: 400 });
@@ -27,9 +27,12 @@ if (!getApps().length) {
         );
         }
 
-        await getAuth().updateUser(uid, {
-        phoneNumber: rawPhone,
-        });
+        const updateData = { phoneNumber: rawPhone };
+        if (role) {
+        updateData.customClaims = { role };
+        }
+
+        await getAuth().updateUser(uid, updateData);
 
         return NextResponse.json({ success: true });
     } catch (error) {

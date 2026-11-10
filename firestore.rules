@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. GESTIÓN DE USUARIOS Y ACCESOS (Abierto temporalmente para desarrollo local y evitar errores en el registro)
+    // 1. GESTIÓN DE USUARIOS Y ACCESOS
     match /usuarios/{uid} {
       allow read, write: if true;
     }
@@ -28,13 +28,9 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.get('token', {}).get('rol', '') == 'admin';
     }
 
-    // 4. CITAS
+    // 4. CITAS (Modificado para permitir listar y leer correctamente a usuarios autenticados)
     match /citas/{citaId} {
-      allow read, write: if request.auth != null && (
-        request.auth.get('token', {}).get('rol', '') == 'admin' || 
-        request.auth.get('token', {}).get('rol', '') == 'profesional' || 
-        request.auth.get('token', {}).get('rol', '') == 'paciente'
-      );
+      allow read, write, list: if request.auth != null;
     }
 
     // 5. ACTOS CLÍNICOS

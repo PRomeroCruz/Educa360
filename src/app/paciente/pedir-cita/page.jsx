@@ -67,7 +67,12 @@ export default function PedirCitaPage() {
     const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
 
     const horasOcupadasEnFecha = citasGuardadas
-      .filter((c) => c.fecha === fecha && (c.estado === "Pendiente" || c.estado === "Aceptada"))
+      .filter((c) => {
+        if (c.fecha !== fecha) return false;
+        const estadoLC = (c.estado || "").toLowerCase();
+        if (estadoLC.includes("cancel") || estadoLC.includes("anul")) return false;
+        return true;
+      })
       .map((c) => c.hora);
 
     const now = new Date();
@@ -197,7 +202,7 @@ export default function PedirCitaPage() {
 
       <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm">
             Módulo de Reservas
           </span>
           <h2 className="text-xl font-bold text-slate-900 mt-2">Formulario de Nueva Cita</h2>
