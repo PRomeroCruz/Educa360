@@ -69,7 +69,7 @@ export default function MedicoDashboard() {
                         ...c,
                         diagnostico,
                         tratamiento,
-                        estado: "completada",
+                        estado: "Completada",
                         fechaAtencion: new Date().toLocaleString()
                     };
                 }
