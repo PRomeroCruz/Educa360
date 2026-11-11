@@ -39,6 +39,11 @@ export default function PedirCitaPage() {
     }, [router]);
 
     const cargarMedicosFirestore = async () => {
+        const medicosPorDefecto = [
+            { nombre: "Dra. Laura Martínez", email: "medico@educa360.test" },
+            { nombre: "Dr. Carlos Sanitario", email: "medico2@educa360.test" }
+        ];
+
         try {
             const usuariosRef = collection(db, "usuarios");
             const querySnapshot = await getDocs(usuariosRef);
@@ -46,6 +51,7 @@ export default function PedirCitaPage() {
 
             querySnapshot.forEach((docSnap) => {
                 const data = docSnap.data();
+                if (!data) return;
                 const emailLower = (data.email || "").toLowerCase();
                 const rolLower = (data.role || "").toLowerCase();
 
@@ -59,21 +65,16 @@ export default function PedirCitaPage() {
             });
 
             if (listaMedicos.length === 0) {
-                listaMedicos.push(
-                    { nombre: "Dra. Laura Martínez", email: "medico@educa360.test" },
-                    { nombre: "Dr. Carlos Sanitario", email: "medico2@educa360.test" }
-                );
+                setMedicosDisponibles(medicosPorDefecto);
+                setMedicoSeleccionado(medicosPorDefecto[0].email);
+            } else {
+                setMedicosDisponibles(listaMedicos);
+                setMedicoSeleccionado(listaMedicos[0]?.email || medicosPorDefecto[0].email);
             }
-
-            setMedicosDisponibles(listaMedicos);
-            setMedicoSeleccionado(listaMedicos[0]?.email || "");
         } catch (err) {
-            console.error("Error al cargar médicos:", err);
-            setMedicosDisponibles([
-                { nombre: "Dra. Laura Martínez", email: "medico@educa360.test" },
-                { nombre: "Dr. Carlos Sanitario", email: "medico2@educa360.test" }
-            ]);
-            setMedicoSeleccionado("medico@educa360.test");
+            console.error("Error al cargar médicos desde Firestore:", err);
+            setMedicosDisponibles(medicosPorDefecto);
+            setMedicoSeleccionado(medicosPorDefecto[0].email);
         }
     };
 
@@ -81,10 +82,10 @@ export default function PedirCitaPage() {
         try {
             const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             const citasUsuario = citasGuardadas.filter(
-                (cita) => cita.userId === currentUser.uid || cita.userEmail === currentUser.email
+                (cita) => cita && (cita.userId === currentUser.uid || cita.userEmail === currentUser.email)
             );
             const citasCompletadas = citasUsuario.filter(
-                (cita) => (cita.estado?.toLowerCase() === "completada" || cita.estado?.toLowerCase() === "atendida") && cita.diagnostico
+                (cita) => cita && (cita.estado?.toLowerCase() === "completada" || cita.estado?.toLowerCase() === "atendida") && cita.diagnostico
             );
             const leidosGuardados = JSON.parse(localStorage.getItem(`diagnosticos_leidos_${currentUser.uid}`) || "[]");
             const noLeidas = citasCompletadas.filter((c) => !leidosGuardados.includes(c.id)).length;
@@ -126,6 +127,7 @@ export default function PedirCitaPage() {
         const todasLasCitas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
         const horasOcupadas = todasLasCitas
             .filter((c) => {
+                if (!c) return false;
                 const esDelMedico = c.medicoEmail === medicoSeleccionado;
                 const esMismaFecha = c.fecha === fecha;
                 const estadoLower = (c.estado || "").toLowerCase();
@@ -170,6 +172,7 @@ export default function PedirCitaPage() {
 
         const todasLasCitas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
         const ocupada = todasLasCitas.some((c) => {
+            if (!c) return false;
             const estadoLower = (c.estado || "").toLowerCase();
             const estaActiva = estadoLower === "pendiente" || estadoLower === "confirmada" || estadoLower === "aceptada";
             return c.medicoEmail === medicoSeleccionado && c.fecha === fecha && c.hora === hora && estaActiva;
@@ -348,7 +351,7 @@ export default function PedirCitaPage() {
                                 required
                                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm font-medium"
                             >
-                                {medicosDisponibles.map((med) => (
+                                {Array.isArray(medicosDisponibles) && medicosDisponibles.map((med) => (
                                     <option key={med.email} value={med.email}>
                                         {med.nombre}
                                     </option>
@@ -386,7 +389,7 @@ export default function PedirCitaPage() {
                                     className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm font-medium disabled:bg-slate-100 disabled:text-slate-400"
                                 >
                                     <option value="">{fecha ? "-- Selecciona una hora --" : "Primero seleccione una fecha"}</option>
-                                    {obtenerHorasValidas().map((h) => (
+                                    {Array.isArray(obtenerHorasValidas()) && obtenerHorasValidas().map((h) => (
                                         <option key={h} value={h}>{h}</option>
                                     ))}
                                 </select>

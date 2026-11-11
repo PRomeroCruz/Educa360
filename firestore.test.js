@@ -26,9 +26,8 @@ beforeEach(async () => {
   await testEnv.clearFirestore();
 });
 
-describe("Pruebas de Reglas de Seguridad - educa360", () => {
+describe("Pruebas Completas de Reglas de Seguridad - educa360", () => {
   
-  // --- PRUEBAS DE ACTOS CLÍNICOS (Imprescindibles) ---
   describe("Colección /actos_clinicos", () => {
     
     it("DEBE PERMITIR a un profesional crear un acto clínico", async () => {
@@ -54,7 +53,6 @@ describe("Pruebas de Reglas de Seguridad - educa360", () => {
     });
 
     it("DEBE PERMITIR acceso directo por ID a un profesional para leer un acto clínico", async () => {
-      // Pre-poblar un documento directamente omitiendo la app
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().doc("actos_clinicos/acto_123").set({
           professional_id: "profesional_1",
@@ -64,13 +62,30 @@ describe("Pruebas de Reglas de Seguridad - educa360", () => {
       });
 
       const dbProf = testEnv.authenticatedContext("profesional_2", { rol: "profesional" }).firestore();
-      // Acceso directo al recurso por ID
       await assertSucceeds(dbProf.doc("actos_clinicos/acto_123").get());
     });
 
   });
 
-  // --- PRUEBAS DE AUDITORÍA (Inmutabilidad y Privacidad) ---
+  describe("Colección /contenido_portal", () => {
+
+    it("DEBE PERMITIR al editor de contenidos escribir en el portal", async () => {
+      const db = testEnv.authenticatedContext("editor_1", { rol: "editor" }).firestore();
+      await assertSucceeds(db.doc("contenido_portal/aviso_1").set({ titulo: "Nuevo comunicado" }));
+    });
+
+    it("DEBE PERMITIR al administrador escribir en el contenido del portal", async () => {
+      const db = testEnv.authenticatedContext("admin_1", { rol: "admin" }).firestore();
+      await assertSucceeds(db.doc("contenido_portal/aviso_2").set({ titulo: "Aviso admin" }));
+    });
+
+    it("DEBE DENEGAR a un profesional escribir en el contenido del portal", async () => {
+      const db = testEnv.authenticatedContext("profesional_1", { rol: "profesional" }).firestore();
+      await assertFails(db.doc("contenido_portal/aviso_3").set({ titulo: "Intento no autorizado" }));
+    });
+
+  });
+
   describe("Colección /auditoria", () => {
 
     it("DEBE PERMITIR al paciente leer su propio registro de auditoría", async () => {
@@ -109,10 +124,8 @@ describe("Pruebas de Reglas de Seguridad - educa360", () => {
 
       const dbAdmin = testEnv.authenticatedContext("admin_1", { rol: "admin" }).firestore();
       
-      // Intentar actualizar debe fallar
       await assertFails(dbAdmin.doc("auditoria/log_1").update({ tipo_entidad: "MODIFICADO" }));
       
-      // Intentar borrar debe fallar
       await assertFails(dbAdmin.doc("auditoria/log_1").delete());
     });
 

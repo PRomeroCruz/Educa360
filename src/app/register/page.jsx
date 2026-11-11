@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
-import { doc, setDoc, getDocs, collection, query, where } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 
 export default function RegisterPage() {
@@ -35,21 +35,13 @@ export default function RegisterPage() {
         setLoading(true);
 
         try {
-            const usuariosRef = collection(db, "usuarios");
-            const qTelefono = query(usuariosRef, where("telefono", "==", telefonoLimpio));
-            const querySnapshot = await getDocs(qTelefono);
-
-            if (!querySnapshot.empty) {
-                setError("Este número de teléfono ya está registrado en el sistema.");
-                setLoading(false);
-                return;
-            }
-
+            // 1. Crear usuario en Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             await updateProfile(user, { displayName: nombre });
 
+            // 2. Determinar el rol institucional según el correo
             const emailLower = email.toLowerCase();
             let roleDeterminado = "paciente";
 
@@ -65,6 +57,7 @@ export default function RegisterPage() {
                 roleDeterminado = "editor_contenidos";
             }
 
+            // 3. Guardar en Firestore (Fuente de verdad de la app)
             await setDoc(doc(db, "usuarios", user.uid), {
                 uid: user.uid,
                 nombre,
@@ -74,6 +67,11 @@ export default function RegisterPage() {
                 createdAt: new Date().toISOString()
             });
 
+            // Guardar también en localStorage para respaldar el flujo de autenticación y 2FA
+            localStorage.setItem(`rol_${email.trim().toLowerCase()}`, roleDeterminado);
+            localStorage.removeItem(`totp_configurado_${email.trim().toLowerCase()}`);
+
+            // 4. Enviar los datos al backend (API) para que inyecte el teléfono en el Auth del servidor
             try {
                 await fetch("/api/set-claims", {
                     method: "POST",
@@ -88,15 +86,14 @@ export default function RegisterPage() {
                 console.warn("Aviso: No se pudo actualizar Auth en el servidor local, pero los datos están en Firestore.");
             }
 
-            await signOut(auth);
-
+            // 5. Redirigir al login
             router.push("/login");
         } catch (err) {
             console.error("Error detallado en el registro:", err);
             
             let mensajeAmigable = "No se pudo completar el registro.";
             if (err.code === "auth/email-already-in-use") {
-                mensajeAmigable = "Este correo electrónico ya está registrado en el sistema.";
+                mensajeAmigable = "Este correo ya está registrado en el sistema.";
             } else if (err.code === "auth/invalid-email") {
                 mensajeAmigable = "El formato del correo electrónico no es válido.";
             } else if (err.message) {
@@ -160,7 +157,7 @@ export default function RegisterPage() {
 
                     <div>
                         <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Teléfono <span className="text-[10px] text-slate-400 font-normal">(Ej: +34600000000)</span>
+                            Teléfono
                         </label>
                         <input
                             type="text"
@@ -195,12 +192,15 @@ export default function RegisterPage() {
                     </button>
                 </form>
 
-                <div className="text-center pt-2 border-t border-slate-100 space-y-1">
-                    <p className="text-[11px] text-slate-500">
-                        ¿Ya tienes cuenta?{" "}
-                        <a href="/login" className="text-blue-600 hover:underline font-semibold">
+                <div className="text-center pt-2 border-t border-slate-100 space-y-2">
+                    <p className="text-xs text-slate-500">
+                        ¿Ya tienes una cuenta?{" "}
+                        <button onClick={() => router.push("/login")} className="text-blue-600 font-bold hover:underline">
                             Inicia sesión aquí
-                        </a>
+                        </button>
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                        Control de acceso con segundo factor obligatorio para perfiles sanitarios.
                     </p>
                 </div>
             </div>
