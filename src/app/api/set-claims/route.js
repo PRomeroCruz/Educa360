@@ -7,7 +7,7 @@ if (!getApps().length) {
         initializeApp({ projectId: "educa360-dev" });
     } catch (error) {
         console.error("Error inicializando Admin:", error);
-  }
+    }
 }
 
 export async function POST(request) {

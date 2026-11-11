@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 
@@ -19,18 +19,23 @@ export default function LoginPage() {
         setLoading(true);
 
         try {
-            // 1. Iniciar sesión en Firebase Auth
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            // 2. Determinar el rol priorizando el correo institucional de forma exacta
+            if (!user.emailVerified) {
+                await signOut(auth);
+                setError("Tu correo electrónico no ha sido verificado. Por favor, revisa tu bandeja de entrada.");
+                setLoading(false);
+                return;
+            }
+
             const emailLower = email.toLowerCase();
             let rol = "paciente";
 
             if (emailLower.includes("adminsistema")) {
                 rol = "admin_sistema";
             } else if (emailLower.includes("medico")) {
-                rol = "profesional_sanitario"; // Asignado estrictamente al perfil médico
+                rol = "profesional_sanitario";
             } else if (emailLower.includes("administracion")) {
                 rol = "admin";
             } else if (emailLower.includes("alumno")) {
@@ -38,7 +43,6 @@ export default function LoginPage() {
             } else if (emailLower.includes("editor")) {
                 rol = "editor_contenidos";
             } else {
-                // Si es un correo normal, consultamos el rol guardado en Firestore
                 const userDocRef = doc(db, "usuarios", user.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
@@ -46,10 +50,8 @@ export default function LoginPage() {
                 }
             }
 
-            // Normalizar el texto del rol
             const rolLimpio = rol.toLowerCase().trim();
 
-            // 3. Registro de auditoría local
             const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
             const nuevoLog = {
                 id: Date.now(),
@@ -61,11 +63,10 @@ export default function LoginPage() {
             };
             localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
 
-            // 4. Redirección estricta al dashboard correspondiente
             if (rolLimpio === "admin_sistema") {
                 router.push("/admin/dashboard");
             } else if (rolLimpio === "profesional_sanitario" || rolLimpio.includes("medico")) {
-                router.push("/medico/dashboard"); // <- AQUÍ ENTRA EL MÉDICO DIRECTAMENTE
+                router.push("/medico/dashboard");
             } else if (rolLimpio === "admin") {
                 router.push("/admin-general/dashboard");
             } else if (rolLimpio === "alumno_practicas") {

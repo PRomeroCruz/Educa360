@@ -12,6 +12,10 @@ export default function DashboardPacientePage() {
   const [citas, setCitas] = useState([]);
   const [warningMessage, setWarningMessage] = useState(null);
   const [citaACancelar, setCitaACancelar] = useState(null);
+  
+  const [vistaActual, setVistaActual] = useState("citas");
+  const [citaSeleccionadaModal, setCitaSeleccionadaModal] = useState(null);
+  const [leidos, setLeidos] = useState([]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -25,6 +29,9 @@ export default function DashboardPacientePage() {
           (cita) => cita.userId === currentUser.uid || cita.userEmail === currentUser.email
         );
         setCitas(citasUsuario);
+
+        const leidosGuardados = JSON.parse(localStorage.getItem(`diagnosticos_leidos_${currentUser.uid}`) || "[]");
+        setLeidos(leidosGuardados);
         
         setLoading(false);
       }
@@ -84,10 +91,27 @@ export default function DashboardPacientePage() {
 
   const getBadgeStyle = (estado) => {
     const est = (estado || "").toLowerCase();
-    if (est === "confirmada") return "bg-emerald-50 text-emerald-700 border border-emerald-200"; // Verde
-    if (est === "completada" || est === "atendida") return "bg-blue-50 text-blue-700 border border-blue-200"; // Azul
-    if (est === "cancelada" || est === "anulada") return "bg-red-50 text-red-700 border border-red-200"; // Rojo
-    return "bg-amber-50 text-amber-700 border border-amber-200"
+    if (est === "confirmada") return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+    if (est === "completada" || est === "atendida") return "bg-blue-50 text-blue-700 border border-blue-200";
+    if (est === "cancelada" || est === "anulada") return "bg-red-50 text-red-700 border border-red-200";
+    return "bg-amber-50 text-amber-700 border border-amber-200";
+  };
+
+  const citasCompletadas = citas.filter(
+    (cita) => (cita.estado?.toLowerCase() === "completada" || cita.estado?.toLowerCase() === "atendida") && cita.diagnostico
+  );
+
+  const noLeidasCount = citasCompletadas.filter((c) => !leidos.includes(c.id)).length;
+
+  const marcarComoLeido = (citaId, e) => {
+    e.stopPropagation();
+    if (!leidos.includes(citaId)) {
+      const nuevosLeidos = [...leidos, citaId];
+      setLeidos(nuevosLeidos);
+      if (user) {
+        localStorage.setItem(`diagnosticos_leidos_${user.uid}`, JSON.stringify(nuevosLeidos));
+      }
+    }
   };
 
   if (loading) {
@@ -99,7 +123,7 @@ export default function DashboardPacientePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900 pb-12">
+    <main className="min-h-screen bg-slate-50 text-slate-900 pb-12 relative">
       <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
           <div className="flex items-center space-x-3">
@@ -111,14 +135,83 @@ export default function DashboardPacientePage() {
               <p className="text-[11px] text-slate-400">Gestión de servicios médicos y académicos</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
-          >
-            Cerrar Sesión
-          </button>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setVistaActual(vistaActual === "diagnosticos" ? "citas" : "diagnosticos")}
+              className="relative p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl transition border border-slate-700 shadow-sm flex items-center justify-center"
+              title="Ver Diagnósticos Médicos"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {noLeidasCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 shadow-md">
+                  {noLeidasCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
+            >
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </header>
+
+      {citaSeleccionadaModal && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-start border-b border-slate-100 pb-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                  {citaSeleccionadaModal.especialidad}
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-1">Detalle del Diagnóstico Clínico</h3>
+              </div>
+              <button
+                onClick={() => setCitaSeleccionadaModal(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 space-y-1">
+                <p className="text-slate-500 font-semibold">Fecha de la cita: <span className="text-slate-800 font-normal">{citaSeleccionadaModal.fecha} a las {citaSeleccionadaModal.hora}</span></p>
+                <p className="text-slate-500 font-semibold">Atendido el: <span className="text-slate-800 font-normal">{citaSeleccionadaModal.fechaAtencion || "N/D"}</span></p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase text-[10px] mb-1">Diagnóstico del Profesional:</label>
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 text-slate-800 whitespace-pre-wrap">
+                  {citaSeleccionadaModal.diagnostico}
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 uppercase text-[10px] mb-1">Tratamiento e Indicaciones:</label>
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 text-slate-800 whitespace-pre-wrap">
+                  {citaSeleccionadaModal.tratamiento || "Sin indicaciones específicas registradas."}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setCitaSeleccionadaModal(null)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -127,7 +220,7 @@ export default function DashboardPacientePage() {
               Rol: Paciente
             </span>
             <h2 className="text-xl font-bold text-slate-900 mt-2">Bienvenido, {user?.displayName || "Usuario"}</h2>
-            <p className="text-slate-500 text-xs mt-0.5">Gestione sus citas médicas y de atención especializada.</p>
+            <p className="text-slate-500 text-xs mt-0.5">Gestione sus citas médicas y consulte sus diagnósticos clínicos.</p>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 font-mono">
@@ -139,84 +232,169 @@ export default function DashboardPacientePage() {
           </div>
         </div>
 
-        {warningMessage && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex justify-between items-center">
-            <span>{warningMessage}</span>
-            <button onClick={() => setWarningMessage(null)} className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded transition">
-              Cerrar
-            </button>
-          </div>
-        )}
-
-        {citaACancelar && (
-          <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-red-900 font-medium">
-              ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
-            </p>
-            <div className="flex space-x-2 shrink-0">
-              <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition shadow-sm">
-                Sí, cancelar
-              </button>
-              <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md transition">
-                Volver
+        {vistaActual === "diagnosticos" ? (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden space-y-4 animate-in fade-in duration-150">
+            <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Historial de Diagnósticos Médicos</h3>
+                <p className="text-xs text-slate-500">Citas completadas con valoraciones y tratamientos emitidos.</p>
+              </div>
+              <button
+                onClick={() => setVistaActual("citas")}
+                className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg transition"
+              >
+                ← Volver a Mis Citas
               </button>
             </div>
-          </div>
-        )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-900">Mis Citas Solicitadas</h3>
-            <span className="text-xs font-mono bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md">
-              {citas.length === 1 ? "1 cita registrada" : `${citas.length} citas registradas`}
-            </span>
-          </div>
-
-          {citas.length === 0 ? (
-            <div className="text-center py-12 text-slate-400 text-xs">
-              No tienes ninguna cita registrada.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-5">Especialidad</th>
-                    <th className="py-3 px-5">Fecha</th>
-                    <th className="py-3 px-5">Hora</th>
-                    <th className="py-3 px-5">Observaciones</th>
-                    <th className="py-3 px-5">Estado</th>
-                    <th className="py-3 px-5 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
-                  {citas.map((cita) => (
-                    <tr key={cita.id} className="hover:bg-slate-50/60 transition">
-                      <td className="py-3.5 px-5 text-slate-900 font-medium">{cita.especialidad}</td>
-                      <td className="py-3.5 px-5 text-slate-600">{cita.fecha}</td>
-                      <td className="py-3.5 px-5 text-slate-600">{cita.hora}</td>
-                      <td className="py-3.5 px-5 text-slate-500 max-w-[200px] truncate" title={cita.motivo}>
-                        {cita.motivo || "Sin observaciones"}
-                      </td>
-                      <td className="py-3.5 px-5">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${getBadgeStyle(cita.estado)}`}>
-                          {formatEstado(cita.estado)}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-5 text-right">
-                        {cita.estado?.toLowerCase() !== "cancelada" && cita.estado?.toLowerCase() !== "completada" && (
-                          <button onClick={() => handleSolicitarCancelacion(cita)} className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold rounded transition">
-                            Anular
-                          </button>
-                        )}
-                      </td>
+            {citasCompletadas.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">
+                No tienes ningún diagnóstico médico completado todavía.
+              </div>
+            ) : (
+              <div className="overflow-x-auto px-5 pb-5">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">Especialidad</th>
+                      <th className="py-3 px-4">Fecha</th>
+                      <th className="py-3 px-4">Hora</th>
+                      <th className="py-3 px-4">Estado</th>
+                      <th className="py-3 px-4 text-right">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+                    {citasCompletadas.map((cita) => {
+                      const isLeido = leidos.includes(cita.id);
+                      return (
+                        <tr key={cita.id} className={`hover:bg-slate-50/60 transition ${!isLeido ? "bg-amber-50/30" : ""}`}>
+                          <td className="py-3.5 px-4 text-slate-900 font-medium flex items-center gap-2">
+                            {cita.especialidad}
+                            {!isLeido && (
+                              <span className="w-2 h-2 rounded-full bg-amber-500" title="Nuevo diagnóstico pendiente de leer"></span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-600">{cita.fecha}</td>
+                          <td className="py-3.5 px-4 text-slate-600">{cita.hora}</td>
+                          <td className="py-3.5 px-4">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${getBadgeStyle(cita.estado)}`}>
+                              {formatEstado(cita.estado)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right space-x-2">
+                            {!isLeido && (
+                              <button
+                                onClick={(e) => marcarComoLeido(cita.id, e)}
+                                title="Marcar como visto / quitar aviso"
+                                className="p-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg transition inline-flex items-center justify-center shadow-sm"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => {
+                                marcarComoLeido(cita.id, { stopPropagation: () => {} });
+                                setCitaSeleccionadaModal(cita);
+                              }}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-semibold rounded-lg shadow-sm transition"
+                            >
+                              Ver Diagnóstico
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {warningMessage && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-900 text-xs flex justify-between items-center">
+                <span>{warningMessage}</span>
+                <button onClick={() => setWarningMessage(null)} className="px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded transition">
+                  Cerrar
+                </button>
+              </div>
+            )}
+
+            {citaACancelar && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-xs text-red-900 font-medium">
+                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                </p>
+                <div className="flex space-x-2 shrink-0">
+                  <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition shadow-sm">
+                    Sí, cancelar
+                  </button>
+                  <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md transition">
+                    Volver
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-sm font-bold text-slate-900">Mis Citas Solicitadas</h3>
+                <span className="text-xs font-mono bg-slate-100 border border-slate-200 text-slate-700 px-2.5 py-1 rounded-md">
+                  {citas.length === 1 ? "1 cita registrada" : `${citas.length} citas registradas`}
+                </span>
+              </div>
+
+              {citas.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  No tienes ninguna cita registrada.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="py-3 px-5">Especialidad</th>
+                        <th className="py-3 px-5">Fecha</th>
+                        <th className="py-3 px-5">Hora</th>
+                        <th className="py-3 px-5">Observaciones</th>
+                        <th className="py-3 px-5">Estado</th>
+                        <th className="py-3 px-5 text-right">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+                      {citas.map((cita) => (
+                        <tr key={cita.id} className="hover:bg-slate-50/60 transition">
+                          <td className="py-3.5 px-5 text-slate-900 font-medium">{cita.especialidad}</td>
+                          <td className="py-3.5 px-5 text-slate-600">{cita.fecha}</td>
+                          <td className="py-3.5 px-5 text-slate-600">{cita.hora}</td>
+                          <td className="py-3.5 px-5 text-slate-500 max-w-[200px] truncate" title={cita.motivo}>
+                            {cita.motivo || "Sin observaciones"}
+                          </td>
+                          <td className="py-3.5 px-5">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${getBadgeStyle(cita.estado)}`}>
+                              {formatEstado(cita.estado)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-5 text-right">
+                            {cita.estado?.toLowerCase() !== "cancelada" && cita.estado?.toLowerCase() !== "completada" && (
+                              <button onClick={() => handleSolicitarCancelacion(cita)} className="px-3 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-[11px] font-semibold rounded transition">
+                                Anular
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </section>
     </main>
   );

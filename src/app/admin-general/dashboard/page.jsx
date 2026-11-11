@@ -115,7 +115,7 @@ export default function AdminGeneralDashboardPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-900 pb-12">
+        <main className="min-h-screen bg-slate-50 text-slate-900 pb-12 relative">
         <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
             <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
             <div className="flex items-center space-x-3">
@@ -136,6 +136,40 @@ export default function AdminGeneralDashboardPage() {
             </div>
         </header>
 
+        {citaACancelar && (
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl shadow-xl border border-red-100 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+                    <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-200 shrink-0">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-900">¿Confirmar cancelación de cita?</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                ¿Desea cancelar la cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-2">
+                        <button
+                            onClick={() => setCitaACancelar(null)}
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+                        >
+                            Volver
+                        </button>
+                        <button
+                            onClick={handleConfirmarEliminacion}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+                        >
+                            Sí, cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -151,22 +185,6 @@ export default function AdminGeneralDashboardPage() {
                 </span>
             </div>
             </div>
-
-            {citaACancelar && (
-            <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-xs text-red-900 font-medium">
-                <strong>Confirmación requerida:</strong> ¿Desea cancelar la cita de <strong>{citaACancelar.especialidad}</strong> programada para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
-                </p>
-                <div className="flex space-x-2 shrink-0">
-                <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition shadow-sm">
-                    Sí, cancelar
-                </button>
-                <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md transition">
-                    Volver
-                </button>
-                </div>
-            </div>
-            )}
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center">
