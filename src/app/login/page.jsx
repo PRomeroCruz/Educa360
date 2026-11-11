@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 
@@ -13,78 +13,82 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
-    const redirigirSegunRol = async (user) => {
-        try {
-            const userDocRef = doc(db, "usuarios", user.uid);
-            const userDoc = await getDoc(userDocRef);
-
-            if (userDoc.exists()) {
-                const data = userDoc.data();
-                const rol = data.role;
-
-                switch (rol) {
-                    case "admin_sistema":
-                        router.push("/admin/dashboard");
-                        break;
-                    case "profesional_sanitario":
-                        router.push("/medico/dashboard");
-                        break;
-                    case "paciente":
-                        router.push("/paciente/dashboard");
-                        break;
-                    case "admin":
-                        router.push("/admin-general/dashboard");
-                        break;
-                    case "alumno_practicas":
-                        router.push("/alumno/dashboard");
-                        break;
-                    case "editor_contenidos":
-                        router.push("/editor/dashboard");
-                        break;
-                    default:
-                        router.push("/paciente/dashboard");
-                        break;
-                }
-            } else {
-                router.push("/paciente/dashboard");
-            }
-        } catch (err) {
-            console.error("Error al obtener el rol:", err);
-            router.push("/paciente/dashboard");
-        }
-    };
-
     const handleLogin = async (e) => {
         e.preventDefault();
         setError("");
         setLoading(true);
 
         try {
+            // 1. Iniciar sesión en Firebase Auth
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            if (!user.emailVerified) {
-                await signOut(auth);
-                setError("Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.");
-                setLoading(false);
-                return;
+            // 2. Determinar el rol priorizando el correo institucional de forma exacta
+            const emailLower = email.toLowerCase();
+            let rol = "paciente";
+
+            if (emailLower.includes("adminsistema")) {
+                rol = "admin_sistema";
+            } else if (emailLower.includes("medico")) {
+                rol = "profesional_sanitario"; // Asignado estrictamente al perfil médico
+            } else if (emailLower.includes("administracion")) {
+                rol = "admin";
+            } else if (emailLower.includes("alumno")) {
+                rol = "alumno_practicas";
+            } else if (emailLower.includes("editor")) {
+                rol = "editor_contenidos";
+            } else {
+                // Si es un correo normal, consultamos el rol guardado en Firestore
+                const userDocRef = doc(db, "usuarios", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    rol = userDocSnap.data().role || "paciente";
+                }
             }
 
+            // Normalizar el texto del rol
+            const rolLimpio = rol.toLowerCase().trim();
+
+            // 3. Registro de auditoría local
             const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
             const nuevoLog = {
                 id: Date.now(),
                 accion: "INICIO_SESION",
                 userEmail: user.email,
-                descripcion: "El usuario inició sesión correctamente en el sistema.",
+                descripcion: `Inicio de sesión exitoso con rol institucional: ${rolLimpio}`,
                 fecha: new Date().toLocaleString(),
                 tipo: "success"
             };
             localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
 
-            await redirigirSegunRol(user);
+            // 4. Redirección estricta al dashboard correspondiente
+            if (rolLimpio === "admin_sistema") {
+                router.push("/admin/dashboard");
+            } else if (rolLimpio === "profesional_sanitario" || rolLimpio.includes("medico")) {
+                router.push("/medico/dashboard"); // <- AQUÍ ENTRA EL MÉDICO DIRECTAMENTE
+            } else if (rolLimpio === "admin") {
+                router.push("/admin-general/dashboard");
+            } else if (rolLimpio === "alumno_practicas") {
+                router.push("/alumno/dashboard");
+            } else if (rolLimpio === "editor_contenidos") {
+                router.push("/editor/dashboard");
+            } else {
+                router.push("/paciente/dashboard");
+            }
+
         } catch (err) {
             console.error("Error en el login:", err);
-            setError("Correo o contraseña incorrectos.");
+
+            let mensajeAmigable = "Credenciales incorrectas o usuario no encontrado.";
+            if (err.code === "auth/user-not-found" || err.code === "auth/invalid-credential") {
+                mensajeAmigable = "El correo o la contraseña son incorrectos.";
+            } else if (err.code === "auth/wrong-password") {
+                mensajeAmigable = "Contraseña incorrecta.";
+            } else if (err.code === "auth/too-many-requests") {
+                mensajeAmigable = "Demasiados intentos fallidos. Inténtalo más tarde.";
+            }
+
+            setError(mensajeAmigable);
             setLoading(false);
         }
     };
@@ -118,7 +122,7 @@ export default function LoginPage() {
                         <input
                             type="email"
                             required
-                            placeholder="usuario@dominio.com"
+                            placeholder="usuario@educa360.test"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
@@ -144,13 +148,13 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-md transition disabled:opacity-50"
                     >
-                        {loading ? "Verificando acceso..." : "Iniciar Sesión"}
+                        {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
                     </button>
                 </form>
 
                 <div className="text-center pt-2 border-t border-slate-100 space-y-1">
                     <p className="text-[11px] text-slate-500">
-                        ¿No tienes cuenta?{" "}
+                        ¿No tienes una cuenta?{" "}
                         <a href="/register" className="text-blue-600 hover:underline font-semibold">
                             Regístrate aquí
                         </a>

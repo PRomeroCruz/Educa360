@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebaseConfig";
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { auth } from "@/lib/firebaseConfig";
 
 export default function MedicoDashboard() {
     const router = useRouter();
@@ -29,15 +28,13 @@ export default function MedicoDashboard() {
         return () => unsubscribe();
     }, [router]);
 
-    const cargarCitasConfirmadas = async () => {
+    const cargarCitasConfirmadas = () => {
         setLoading(true);
         try {
             const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            
             const citasConfirmadas = citasLocales.filter(
                 (c) => c.estado === "Confirmada"
             );
-
             setCitas(citasConfirmadas);
         } catch (error) {
             console.error("Error al cargar citas:", error);
@@ -54,7 +51,7 @@ export default function MedicoDashboard() {
         setMensaje("");
     };
 
-    const guardarDiagnosticoYCompletar = async (e) => {
+    const guardarDiagnosticoYCompletar = (e) => {
         e.preventDefault();
         if (!citaSeleccionada) return;
 
@@ -64,7 +61,7 @@ export default function MedicoDashboard() {
         try {
             const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             const nuevasCitasGlobales = citasGlobales.map((c) => {
-                if (c.id === citaSeleccionada.id) {
+                if (String(c.id) === String(citaSeleccionada.id)) {
                     return {
                         ...c,
                         diagnostico,
@@ -82,15 +79,15 @@ export default function MedicoDashboard() {
                 id: Date.now(),
                 accion: "REGISTRAR_DIAGNOSTICO",
                 userEmail: user?.email || "medico@educa360.test",
-                descripcion: `El profesional sanitario registró un diagnóstico y completó la cita de ${citaSeleccionada.especialidad || "General"}`,
+                descripcion: `El profesional sanitario completó la cita de ${citaSeleccionada.especialidad || "General"}`,
                 fecha: new Date().toLocaleString(),
                 tipo: "success"
             };
             localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
 
-            setCitas((prevCitas) => prevCitas.filter((c) => c.id !== citaSeleccionada.id));
+            setCitas((prevCitas) => prevCitas.filter((c) => String(c.id) !== String(citaSeleccionada.id)));
 
-            setMensaje("Cita atendida y marcada como completada con éxito.");
+            setMensaje("Cita atendida y marcada como Completada con éxito.");
             setCitaSeleccionada(null);
             setDiagnostico("");
             setTratamiento("");
@@ -165,10 +162,7 @@ export default function MedicoDashboard() {
                             <h3 className="text-sm font-bold text-slate-900">
                                 Citas Confirmadas ({citas.length})
                             </h3>
-                            <button
-                                onClick={cargarCitasConfirmadas}
-                                className="text-xs text-blue-600 hover:underline font-semibold"
-                            >
+                            <button onClick={cargarCitasConfirmadas} className="text-xs text-blue-600 hover:underline font-semibold">
                                 Recargar Lista
                             </button>
                         </div>

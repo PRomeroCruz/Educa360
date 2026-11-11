@@ -2,18 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile, deleteUser } from "firebase/auth";
-import { doc, setDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
-
-const ROLES_DISPONIBLES = [
-    { valor: "paciente", etiqueta: "Paciente" },
-    { valor: "profesional_sanitario", etiqueta: "Profesional Sanitario" },
-    { valor: "alumno_practicas", etiqueta: "Alumno en Prácticas" },
-    { valor: "admin", etiqueta: "Administrador General" },
-    { valor: "admin_sistema", etiqueta: "Administrador del Sistema" },
-    { valor: "editor_contenidos", etiqueta: "Editor de Contenidos" },
-];
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -21,113 +12,97 @@ export default function RegisterPage() {
     const [email, setEmail] = useState("");
     const [telefono, setTelefono] = useState("");
     const [password, setPassword] = useState("");
-    const [rolSeleccionado, setRolSeleccionado] = useState("");
-
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleRegister = async (e) => {
         e.preventDefault();
         setError("");
+
+        if (password.length < 6) {
+            setError("La contraseña debe tener al menos 6 caracteres.");
+            return;
+        }
+
+        const telefonoLimpio = telefono.replace(/\s+/g, '');
+        const telefonoRegex = /^\+\d{1,3}\d{9}$/;
+        
+        if (!telefonoRegex.test(telefonoLimpio)) {
+            setError("El teléfono debe incluir el prefijo internacional (ej. +34) y exactamente 9 dígitos.");
+            return;
+        }
+
         setLoading(true);
 
-        let createdUser = null;
-
         try {
-            if (!rolSeleccionado) {
-                throw new Error("Por favor, selecciona un rol institucional.");
-            }
-
-            if (password.length < 6) {
-                throw new Error("La contraseña debe tener al menos 6 caracteres.");
-            }
-
-            const telefonoLimpio = String(telefono).trim();
-            if (!telefonoLimpio.startsWith("+")) {
-                throw new Error("El número de teléfono debe incluir el prefijo internacional (ej. +34612345678).");
-            }
-
-            const soloDigitos = telefonoLimpio.replace("+", "").replace(/[^0-9]/g, "");
-            
-            if (soloDigitos.length < 11) {
-                throw new Error("El número de teléfono debe tener al menos 9 dígitos después del prefijo.");
-            }
-
-            const usuariosRef = collection(db, "usuarios");
-            const qTelefono = query(usuariosRef, where("telefono", "==", telefonoLimpio));
-            const querySnapshotTelefono = await getDocs(qTelefono);
-
-            if (!querySnapshotTelefono.empty) {
-                throw new Error("Este número de teléfono ya está registrado por otro usuario.");
-            }
-
+            // 1. Crear usuario en Firebase Auth
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            createdUser = userCredential.user;
+            const user = userCredential.user;
 
-            await updateProfile(createdUser, {
-                displayName: nombre
-            });
+            await updateProfile(user, { displayName: nombre });
 
-            const customClaimsJson = { role: rolSeleccionado };
-            await setDoc(doc(db, "usuarios", createdUser.uid), {
-                uid: createdUser.uid,
-                nombre: nombre,
-                email: email,
+            // 2. Determinar el rol institucional según el correo
+            const emailLower = email.toLowerCase();
+            let roleDeterminado = "paciente";
+
+            if (emailLower.includes("adminsistema")) {
+                roleDeterminado = "admin_sistema";
+            } else if (emailLower.includes("medico")) {
+                roleDeterminado = "profesional_sanitario";
+            } else if (emailLower.includes("administracion")) {
+                roleDeterminado = "admin";
+            } else if (emailLower.includes("alumno")) {
+                roleDeterminado = "alumno_practicas";
+            } else if (emailLower.includes("editor")) {
+                roleDeterminado = "editor_contenidos";
+            }
+
+            // 3. Guardar en Firestore (Fuente de verdad de la app)
+            await setDoc(doc(db, "usuarios", user.uid), {
+                uid: user.uid,
+                nombre,
+                email,
                 telefono: telefonoLimpio,
-                role: rolSeleccionado,
-                customClaims: customClaimsJson,
+                role: roleDeterminado,
                 createdAt: new Date().toISOString()
             });
 
-            const response = await fetch("/api/update-phone", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    uid: createdUser.uid,
-                    telefono: telefonoLimpio,
-                    role: rolSeleccionado
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Error al actualizar los datos en Authentication.");
+            // 4. Enviar los datos al backend (API) para que inyecte el teléfono en el Auth del servidor
+            try {
+                await fetch("/api/set-claims", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        uid: user.uid, 
+                        email: user.email, 
+                        telefono: telefonoLimpio 
+                    }),
+                });
+            } catch (claimErr) {
+                console.warn("Aviso: No se pudo actualizar Auth en el servidor local, pero los datos están en Firestore.");
             }
 
-            const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-            const nuevoLog = {
-                id: Date.now(),
-                accion: "REGISTRO_USUARIO",
-                userEmail: createdUser.email,
-                descripcion: `Registro completado. Rol: ${rolSeleccionado} | Teléfono: ${telefonoLimpio}`,
-                fecha: new Date().toLocaleString(),
-                tipo: "success"
-            };
-            localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
-
+            // 5. Redirigir al login
             router.push("/login");
-
         } catch (err) {
-            if (createdUser) {
-                try { await deleteUser(createdUser); } catch (delErr) {}
-            }
+            console.error("Error detallado en el registro:", err);
             
-            let mensajeError = err.message;
+            let mensajeAmigable = "No se pudo completar el registro.";
             if (err.code === "auth/email-already-in-use") {
-                mensajeError = "Este correo electrónico ya está registrado.";
-            } else if (err.code === "auth/weak-password") {
-                mensajeError = "La contraseña debe tener al menos 6 caracteres.";
+                mensajeAmigable = "Este correo ya está registrado en el sistema.";
+            } else if (err.code === "auth/invalid-email") {
+                mensajeAmigable = "El formato del correo electrónico no es válido.";
+            } else if (err.message) {
+                mensajeAmigable = err.message;
             }
 
-            setError(mensajeError);
-        } finally {
+            setError(mensajeAmigable);
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen bg-slate-900 flex items-center justify-center px-4 py-8">
+        <main className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-slate-800">
                 <div className="text-center space-y-2">
                     <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-xl shadow-md">
@@ -178,32 +153,12 @@ export default function RegisterPage() {
 
                     <div>
                         <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Perfil / Rol Institucional
-                        </label>
-                        <select
-                            value={rolSeleccionado}
-                            onChange={(e) => setRolSeleccionado(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-medium focus:outline-none focus:border-blue-600 transition shadow-sm cursor-pointer"
-                        >
-                            <option value="" disabled>
-                                Selecciona tu rol
-                            </option>
-                            {ROLES_DISPONIBLES.map((r) => (
-                                <option key={r.valor} value={r.valor}>
-                                    {r.etiqueta}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Número de Teléfono (con prefijo, ej. +34612345678)
+                            Teléfono <span className="text-[10px] text-slate-400 font-normal">(Ej: +34600000000)</span>
                         </label>
                         <input
                             type="text"
                             required
-                            placeholder="+34612345678"
+                            placeholder="+34 600 000 000"
                             value={telefono}
                             onChange={(e) => setTelefono(e.target.value)}
                             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
@@ -217,7 +172,7 @@ export default function RegisterPage() {
                         <input
                             type="password"
                             required
-                            placeholder="Mínimo 6 caracteres"
+                            placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
@@ -239,9 +194,6 @@ export default function RegisterPage() {
                         <a href="/login" className="text-blue-600 hover:underline font-semibold">
                             Inicia sesión aquí
                         </a>
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                        Control de acceso basado en matriz de perfiles institucionales.
                     </p>
                 </div>
             </div>
