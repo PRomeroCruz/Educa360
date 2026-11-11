@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
+import { doc, setDoc, getDocs, collection, query, where } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 
 export default function RegisterPage() {
@@ -35,13 +35,21 @@ export default function RegisterPage() {
         setLoading(true);
 
         try {
-            // 1. Crear usuario en Firebase Auth
+            const usuariosRef = collection(db, "usuarios");
+            const qTelefono = query(usuariosRef, where("telefono", "==", telefonoLimpio));
+            const querySnapshot = await getDocs(qTelefono);
+
+            if (!querySnapshot.empty) {
+                setError("Este número de teléfono ya está registrado en el sistema.");
+                setLoading(false);
+                return;
+            }
+
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             await updateProfile(user, { displayName: nombre });
 
-            // 2. Determinar el rol institucional según el correo
             const emailLower = email.toLowerCase();
             let roleDeterminado = "paciente";
 
@@ -57,7 +65,6 @@ export default function RegisterPage() {
                 roleDeterminado = "editor_contenidos";
             }
 
-            // 3. Guardar en Firestore (Fuente de verdad de la app)
             await setDoc(doc(db, "usuarios", user.uid), {
                 uid: user.uid,
                 nombre,
@@ -67,7 +74,6 @@ export default function RegisterPage() {
                 createdAt: new Date().toISOString()
             });
 
-            // 4. Enviar los datos al backend (API) para que inyecte el teléfono en el Auth del servidor
             try {
                 await fetch("/api/set-claims", {
                     method: "POST",
@@ -82,14 +88,15 @@ export default function RegisterPage() {
                 console.warn("Aviso: No se pudo actualizar Auth en el servidor local, pero los datos están en Firestore.");
             }
 
-            // 5. Redirigir al login
+            await signOut(auth);
+
             router.push("/login");
         } catch (err) {
             console.error("Error detallado en el registro:", err);
             
             let mensajeAmigable = "No se pudo completar el registro.";
             if (err.code === "auth/email-already-in-use") {
-                mensajeAmigable = "Este correo ya está registrado en el sistema.";
+                mensajeAmigable = "Este correo electrónico ya está registrado en el sistema.";
             } else if (err.code === "auth/invalid-email") {
                 mensajeAmigable = "El formato del correo electrónico no es válido.";
             } else if (err.message) {

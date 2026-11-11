@@ -13,7 +13,7 @@ export default function DashboardPacientePage() {
   const [warningMessage, setWarningMessage] = useState(null);
   const [citaACancelar, setCitaACancelar] = useState(null);
   
-  const [vistaActual, setVistaActual] = useState("citas");
+  const [vistaActual, setVistaActual] = useState("citas"); // "citas" o "diagnosticos"
   const [citaSeleccionadaModal, setCitaSeleccionadaModal] = useState(null);
   const [leidos, setLeidos] = useState([]);
 
@@ -162,6 +162,40 @@ export default function DashboardPacientePage() {
         </div>
       </header>
 
+      {citaACancelar && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-red-100 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-200 shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">¿Confirmar cancelación de cita?</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setCitaACancelar(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
+              >
+                Volver
+              </button>
+              <button
+                onClick={handleConfirmarEliminacion}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
+              >
+                Sí, cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {citaSeleccionadaModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
@@ -182,6 +216,7 @@ export default function DashboardPacientePage() {
 
             <div className="space-y-3 text-xs">
               <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200 space-y-1">
+                <p className="text-slate-500 font-semibold">Médico asignado: <span className="text-slate-800 font-normal">{citaSeleccionadaModal.medicoAsignado || "No especificado"}</span></p>
                 <p className="text-slate-500 font-semibold">Fecha de la cita: <span className="text-slate-800 font-normal">{citaSeleccionadaModal.fecha} a las {citaSeleccionadaModal.hora}</span></p>
                 <p className="text-slate-500 font-semibold">Atendido el: <span className="text-slate-800 font-normal">{citaSeleccionadaModal.fechaAtencion || "N/D"}</span></p>
               </div>
@@ -257,8 +292,8 @@ export default function DashboardPacientePage() {
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                       <th className="py-3 px-4">Especialidad</th>
+                      <th className="py-3 px-4">Médico</th>
                       <th className="py-3 px-4">Fecha</th>
-                      <th className="py-3 px-4">Hora</th>
                       <th className="py-3 px-4">Estado</th>
                       <th className="py-3 px-4 text-right">Acciones</th>
                     </tr>
@@ -274,8 +309,8 @@ export default function DashboardPacientePage() {
                               <span className="w-2 h-2 rounded-full bg-amber-500" title="Nuevo diagnóstico pendiente de leer"></span>
                             )}
                           </td>
-                          <td className="py-3.5 px-4 text-slate-600">{cita.fecha}</td>
-                          <td className="py-3.5 px-4 text-slate-600">{cita.hora}</td>
+                          <td className="py-3.5 px-4 text-slate-600">{cita.medicoAsignado || "No especificado"}</td>
+                          <td className="py-3.5 px-4 text-slate-600">{cita.fecha} ({cita.hora})</td>
                           <td className="py-3.5 px-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${getBadgeStyle(cita.estado)}`}>
                               {formatEstado(cita.estado)}
@@ -324,22 +359,6 @@ export default function DashboardPacientePage() {
               </div>
             )}
 
-            {citaACancelar && (
-              <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-xs text-red-900 font-medium">
-                  ¿Estás seguro de que deseas cancelar tu cita de <strong>{citaACancelar.especialidad}</strong> para el <strong>{citaACancelar.fecha}</strong> a las <strong>{citaACancelar.hora}</strong>?
-                </p>
-                <div className="flex space-x-2 shrink-0">
-                  <button onClick={handleConfirmarEliminacion} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-md transition shadow-sm">
-                    Sí, cancelar
-                  </button>
-                  <button onClick={() => setCitaACancelar(null)} className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-md transition">
-                    Volver
-                  </button>
-                </div>
-              </div>
-            )}
-
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex justify-between items-center">
                 <h3 className="text-sm font-bold text-slate-900">Mis Citas Solicitadas</h3>
@@ -358,9 +377,9 @@ export default function DashboardPacientePage() {
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                         <th className="py-3 px-5">Especialidad</th>
+                        <th className="py-3 px-5">Médico</th>
                         <th className="py-3 px-5">Fecha</th>
                         <th className="py-3 px-5">Hora</th>
-                        <th className="py-3 px-5">Observaciones</th>
                         <th className="py-3 px-5">Estado</th>
                         <th className="py-3 px-5 text-right">Acciones</th>
                       </tr>
@@ -369,11 +388,9 @@ export default function DashboardPacientePage() {
                       {citas.map((cita) => (
                         <tr key={cita.id} className="hover:bg-slate-50/60 transition">
                           <td className="py-3.5 px-5 text-slate-900 font-medium">{cita.especialidad}</td>
+                          <td className="py-3.5 px-5 text-slate-600">{cita.medicoAsignado || "No especificado"}</td>
                           <td className="py-3.5 px-5 text-slate-600">{cita.fecha}</td>
                           <td className="py-3.5 px-5 text-slate-600">{cita.hora}</td>
-                          <td className="py-3.5 px-5 text-slate-500 max-w-[200px] truncate" title={cita.motivo}>
-                            {cita.motivo || "Sin observaciones"}
-                          </td>
                           <td className="py-3.5 px-5">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${getBadgeStyle(cita.estado)}`}>
                               {formatEstado(cita.estado)}

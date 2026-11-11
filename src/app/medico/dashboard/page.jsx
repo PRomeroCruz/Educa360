@@ -22,22 +22,27 @@ export default function MedicoDashboard() {
                 router.push("/login");
             } else {
                 setUser(currentUser);
-                cargarCitasConfirmadas();
+                cargarCitasConfirmadas(currentUser);
             }
         });
         return () => unsubscribe();
     }, [router]);
 
-    const cargarCitasConfirmadas = () => {
+    const cargarCitasConfirmadas = (currentUser) => {
         setLoading(true);
         try {
             const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            const citasConfirmadas = citasLocales.filter(
-                (c) => c.estado === "Confirmada"
-            );
-            setCitas(citasConfirmadas);
+            
+            const citasDelMedico = citasLocales.filter((c) => {
+                // Se muestran si están confirmadas (aceptadas por admin o con estado correspondiente)
+                const esConfirmadaOrPendiente = c.estado === "Confirmada" || c.estado === "Pendiente";
+                const esSuCita = !c.medicoEmail || c.medicoEmail === currentUser?.email;
+                return esConfirmadaOrPendiente && esSuCita;
+            });
+
+            setCitas(citasDelMedico);
         } catch (error) {
-            console.error("Error al cargar citas:", error);
+            console.error("Error al cargar citas del médico:", error);
             setCitas([]);
         } finally {
             setLoading(false);
@@ -140,8 +145,8 @@ export default function MedicoDashboard() {
                         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm">
                             Rol: Profesional Sanitario
                         </span>
-                        <h2 className="text-xl font-bold text-slate-900 mt-2">Gestión de Citas Confirmadas</h2>
-                        <p className="text-slate-500 text-xs mt-0.5">Atienda las citas confirmadas de los pacientes y emita su diagnóstico clínico.</p>
+                        <h2 className="text-xl font-bold text-slate-900 mt-2">Mis Citas Asignadas</h2>
+                        <p className="text-slate-500 text-xs mt-0.5">Atienda las citas confirmadas de sus pacientes asignados y emita su diagnóstico clínico.</p>
                     </div>
                     <div className="flex items-center gap-3">
                         <span className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 font-mono">
@@ -160,17 +165,14 @@ export default function MedicoDashboard() {
                     <section className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                             <h3 className="text-sm font-bold text-slate-900">
-                                Citas Confirmadas ({citas.length})
+                                Citas Asignadas ({citas.length})
                             </h3>
-                            <button onClick={cargarCitasConfirmadas} className="text-xs text-blue-600 hover:underline font-semibold">
-                                Recargar Lista
-                            </button>
                         </div>
 
                         {citas.length === 0 ? (
                             <div className="text-center py-12 space-y-2">
-                                <p className="text-sm font-semibold text-slate-700">No hay citas confirmadas</p>
-                                <p className="text-xs text-slate-400">Las citas pendientes o ya completadas no se muestran aquí.</p>
+                                <p className="text-sm font-semibold text-slate-700">No tienes citas asignadas pendientes</p>
+                                <p className="text-xs text-slate-400">Las citas de otros médicos o no confirmadas no se muestran aquí.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -191,7 +193,7 @@ export default function MedicoDashboard() {
                                                 Especialidad: <span className="font-semibold">{cita.especialidad || "Medicina General"}</span>
                                             </p>
                                             <p className="text-[11px] text-slate-500">
-                                                Fecha/Hora: {cita.fecha} - {cita.hora}
+                                                Fecha/Hora: {cita.fecha} a las {cita.hora}
                                             </p>
                                             <p className="text-[11px] text-slate-500 max-w-[280px] truncate" title={cita.motivo}>
                                                 Motivo: {cita.motivo || "Consulta General"}
