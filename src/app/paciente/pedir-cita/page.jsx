@@ -306,7 +306,7 @@ export default function PedirCitaPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="p-6 border-b border-slate-100 space-y-1">
                         <h2 className="text-lg font-bold text-slate-900">Formulario de Nueva Cita</h2>
-                        <p className="text-xs text-slate-500">Seleccione la especialidad, el profesional y el horario deseado (De 09:00 a 13:00 y de 14:00 a 21:00).</p>
+                        <p className="text-xs text-slate-500">Seleccione la especialidad, el profesional y el horario deseado (De 09:00 a 13:00 y de 16:00 a 21:00).</p>
                     </div>
 
                     {error && (

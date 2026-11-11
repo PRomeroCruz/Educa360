@@ -13,7 +13,7 @@ export default function DashboardPacientePage() {
   const [warningMessage, setWarningMessage] = useState(null);
   const [citaACancelar, setCitaACancelar] = useState(null);
   
-  const [vistaActual, setVistaActual] = useState("citas"); // "citas" o "diagnosticos"
+  const [vistaActual, setVistaActual] = useState("citas");
   const [citaSeleccionadaModal, setCitaSeleccionadaModal] = useState(null);
   const [leidos, setLeidos] = useState([]);
 
