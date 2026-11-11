@@ -117,7 +117,7 @@ function Verify2faContent() {
                         type="submit"
                         className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/25 transition"
                     >
-                        Verificar y Activar 2FA
+                        Verificar Código
                     </button>
                 </form>
             </div>

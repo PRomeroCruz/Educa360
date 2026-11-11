@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
 
-export default function LoginPage() {
+function LoginContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    
+    const sesionCaducada = searchParams.get("sesionCaducada");
+    const redirectPath = searchParams.get("redirect") || "";
+
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -72,6 +77,11 @@ export default function LoginPage() {
                 ...logsActuales
             ]));
 
+            if (redirectPath) {
+                router.push(redirectPath);
+                return;
+            }
+
             if (rolLimpio === "admin_sistema") {
                 router.push("/admin/dashboard");
             } else if (rolLimpio === "admin") {
@@ -106,6 +116,12 @@ export default function LoginPage() {
                         Plataforma Segura de Gestión Institucional y Sanitaria
                     </p>
                 </div>
+
+                {sesionCaducada && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg text-center font-medium">
+                        Tu sesión ha caducado. Por favor, vuelve a iniciar sesión para continuar.
+                    </div>
+                )}
 
                 {error && (
                     <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg text-center font-medium">
@@ -164,5 +180,13 @@ export default function LoginPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs">Cargando...</div>}>
+            <LoginContent />
+        </Suspense>
     );
 }
