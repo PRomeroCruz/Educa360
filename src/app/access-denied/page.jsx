@@ -1,67 +1,46 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { useState, useEffect } from "react";
+import { useAuthGuard } from "@/lib/useAuthGuard";
+import { dashboardParaRol, inferirRolDesdeEmail } from "@/lib/roles";
 
 export default function AccesoDenegadoPage() {
     const router = useRouter();
+    const { user, loading } = useAuthGuard();
     const [rutaDestino, setRutaDestino] = useState("/login");
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                setRutaDestino("/login");
-                return;
-            }
+        if (!user) {
+            setRutaDestino("/login");
+            return;
+        }
 
-            try {
-                const userDocRef = doc(db, "usuarios", user.uid);
-                const userDoc = await getDoc(userDocRef);
-                
-                let rol = "paciente";
-                if (userDoc.exists()) {
-                    rol = userDoc.data().role || "paciente";
-                } else {
-                    rol = localStorage.getItem(`rol_${user.email}`) || "paciente";
+        let active = true;
+        user.getIdTokenResult()
+            .then((token) => {
+                if (!active) return;
+                const rol = token.claims?.role || inferirRolDesdeEmail(user.email);
+                setRutaDestino(dashboardParaRol(rol));
+            })
+            .catch(() => {
+                if (active) {
+                    setRutaDestino(dashboardParaRol(inferirRolDesdeEmail(user.email)));
                 }
+            });
 
-                const rolLower = rol.toLowerCase();
-                const emailLower = user.email.toLowerCase();
+        return () => {
+            active = false;
+        };
+    }, [user]);
 
-                if (
-                    rolLower.includes("administración") || 
-                    rolLower.includes("administracion") || 
-                    emailLower.includes("administracion@") ||
-                    emailLower.includes("gestion")
-                ) {
-                    setRutaDestino("/admin-general/dashboard");
-                } 
-                else if (rolLower.includes("profesional") || rolLower.includes("medico") || emailLower.includes("medico")) {
-                    setRutaDestino("/medico/dashboard");
-                } 
-                else if (rolLower.includes("admin_sistema") || rolLower === "admin") {
-                    setRutaDestino("/admin/dashboard");
-                } 
-                else if (rolLower.includes("alumno") || rolLower.includes("practicas")) {
-                    setRutaDestino("/alumno/dashboard");
-                } 
-                else if (rolLower.includes("editor")) {
-                    setRutaDestino("/editor/dashboard");
-                } 
-                else {
-                    setRutaDestino("/paciente/dashboard");
-                }
-            } catch (error) {
-                console.error("Error al determinar la ruta de retorno:", error);
-                setRutaDestino("/login");
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
+    if (loading) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#0f172a]">
+                <p className="text-slate-400 text-xs font-medium tracking-wide animate-pulse">Comprobando permisos...</p>
+            </div>
+        );
+    }
 
     return (
         <main className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 text-slate-900">

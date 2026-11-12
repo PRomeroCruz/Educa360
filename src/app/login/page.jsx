@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
+import { dashboardParaRol, esRutaInterna } from "@/lib/roles";
+import { mensajeAmigable } from "@/lib/mensajesAmigables";
 
 function LoginContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    
-    const sesionCaducada = searchParams.get("sesionCaducada");
-    const redirectPath = searchParams.get("redirect") || "";
-
+    const motivo = searchParams.get("motivo");
+    const redirect = searchParams.get("redirect");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -60,7 +60,10 @@ function LoginContent() {
                 rolLimpio.includes("medico") || 
                 currentUser.email.toLowerCase().includes("medico")
             ) {
-                router.push(`/verify-2fa?email=${encodeURIComponent(currentUser.email)}`);
+                const redirectParam = esRutaInterna(redirect)
+                    ? `&redirect=${encodeURIComponent(redirect)}`
+                    : "";
+                router.push(`/verify-2fa?email=${encodeURIComponent(currentUser.email)}${redirectParam}`);
                 return;
             }
 
@@ -77,26 +80,11 @@ function LoginContent() {
                 ...logsActuales
             ]));
 
-            if (redirectPath) {
-                router.push(redirectPath);
-                return;
-            }
-
-            if (rolLimpio === "admin_sistema") {
-                router.push("/admin/dashboard");
-            } else if (rolLimpio === "admin") {
-                router.push("/admin-general/dashboard");
-            } else if (rolLimpio === "alumno_practicas") {
-                router.push("/alumno/dashboard");
-            } else if (rolLimpio === "editor_contenidos") {
-                router.push("/editor/dashboard");
-            } else {
-                router.push("/paciente/dashboard");
-            }
+            router.push(esRutaInterna(redirect) ? redirect : dashboardParaRol(rolLimpio));
 
         } catch (err) {
             console.error("Error en el login:", err);
-            setError("Correo o contraseña incorrectos.");
+            setError(mensajeAmigable(err, "Correo o contraseña incorrectos."));
         } finally {
             setLoading(false);
         }
@@ -117,9 +105,9 @@ function LoginContent() {
                     </p>
                 </div>
 
-                {sesionCaducada && (
+                {motivo === "sesion" && (
                     <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg text-center font-medium">
-                        Tu sesión ha caducado. Por favor, vuelve a iniciar sesión para continuar.
+                        Tu sesión ha caducado. Inicia sesión de nuevo para continuar.
                     </div>
                 )}
 
@@ -185,7 +173,7 @@ function LoginContent() {
 
 export default function LoginPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs">Cargando...</div>}>
+        <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-900 text-sm text-slate-400">Cargando acceso seguro...</div>}>
             <LoginContent />
         </Suspense>
     );

@@ -1,32 +1,22 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebaseConfig";
-import { onAuthStateChanged, sendEmailVerification } from "firebase/auth";
+import { sendEmailVerification } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { useAuthGuard } from "@/lib/useAuthGuard";
+import { dashboardParaRol } from "@/lib/roles";
 
 function VerifyNoticeContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const emailParam = searchParams.get("email") || "";
     const roleParam = searchParams.get("role") || "";
+    const { user } = useAuthGuard();
 
-    const [user, setUser] = useState(null);
     const [verificado, setVerificado] = useState(false);
     const [mensaje, setMensaje] = useState("");
-
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (currentUser) {
-                setUser(currentUser);
-                if (currentUser.emailVerified) {
-                    setVerificado(true);
-                }
-            }
-        });
-        return () => unsubscribe();
-    }, []);
 
     const comprobarVerificacion = async () => {
         try {
@@ -69,14 +59,12 @@ function VerifyNoticeContent() {
                     if (rolFinal === "profesional_sanitario") {
                         const totpConfigurado = localStorage.getItem(`totp_configurado_${refreshedUser.email}`);
                         if (!totpConfigurado) {
-                            router.push(`/api/verify-2fa?email=${encodeURIComponent(refreshedUser.email)}`);
+                            router.push(`/verify-2fa?email=${encodeURIComponent(refreshedUser.email)}`);
                             return;
                         }
-                        router.push("/medico/dashboard");
-                    } else if (rolFinal === "admin_general") {
-                        router.push("/admin-general/dashboard");
+                        router.push(dashboardParaRol(rolFinal));
                     } else {
-                        router.push("/paciente/dashboard");
+                        router.push(dashboardParaRol(rolFinal));
                     }
                 }, 1500);
 
@@ -98,7 +86,7 @@ function VerifyNoticeContent() {
             } else {
                 router.push("/login");
             }
-        } catch (e) {
+        } catch {
             setMensaje("Error al reenviar el correo. Por favor, inicia sesión de nuevo.");
             setTimeout(() => router.push("/login"), 2000);
         }

@@ -1,55 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { auth, db } from "@/lib/firebaseConfig";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
-export default function AdminLayout({ children }) {
-    const router = useRouter();
-    const [verificando, setVerificando] = useState(true);
+export default function AdminGeneralLayout({ children }) {
+    const { loading } = useAuthGuard("admin, administración");
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                const rutaActual = window.location.pathname;
-                router.push(`/login?sesionCaducada=true&redirect=${encodeURIComponent(rutaActual)}`);
-                return;
-            }
-
-            try {
-                const userDocRef = doc(db, "usuarios", user.uid);
-                const userDoc = await getDoc(userDocRef);
-                
-                let rol = "admin";
-                if (userDoc.exists()) {
-                    rol = userDoc.data().role || "admin";
-                } else {
-                    rol = localStorage.getItem(`rol_${user.email}`) || "admin";
-                }
-
-                const rolPermitido = "admin"; 
-
-                if (rol !== rolPermitido && rol !== "admin") {
-                    router.push("/access-denied");
-                    return;
-                }
-
-            } catch (error) {
-                console.error("Error técnico al validar permisos:", error);
-            } finally {
-                setVerificando(false);
-            }
-        });
-
-        return () => unsubscribe();
-    }, [router]);
-
-    if (verificando) {
+    if (loading) {
         return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs font-medium">
-                Verificando credenciales de acceso institucional...
+            <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">
+                <p className="text-xs font-medium animate-pulse">Cargando panel de administración general...</p>
             </div>
         );
     }

@@ -2,11 +2,13 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { esRutaInterna } from "@/lib/roles";
 
 function Verify2faContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const emailParam = searchParams.get("email") || "";
+    const redirectParam = searchParams.get("redirect");
 
     const [codigoSimulado] = useState("389204");
     const [inputCodigo, setInputCodigo] = useState("");
@@ -40,15 +42,14 @@ function Verify2faContent() {
 
     const handleAceptarPopup = () => {
         setMostrarPopupExito(false);
-        router.push("/medico/dashboard");
+        router.push(esRutaInterna(redirectParam) ? redirectParam : "/medico/dashboard");
     };
 
     return (
         <main className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 text-slate-900 relative">
-            
             {mostrarPopupExito && (
                 <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-2xl border border-emerald-100 max-w-sm w-full p-8 text-center space-y-5 animate-in fade-in zoom-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-emerald-100 max-w-sm w-full p-8 text-center space-y-5">
                         <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl mx-auto flex items-center justify-center border border-emerald-100 shadow-sm">
                             <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -62,7 +63,7 @@ function Verify2faContent() {
                         </div>
                         <button
                             onClick={handleAceptarPopup}
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-500/25 transition"
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg transition"
                         >
                             Acceder al Panel
                         </button>
@@ -71,7 +72,6 @@ function Verify2faContent() {
             )}
 
             <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-[440px] w-full p-10 space-y-6 text-center">
-                
                 <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl mx-auto flex items-center justify-center border border-indigo-100 shadow-sm">
                     <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -81,7 +81,7 @@ function Verify2faContent() {
                 <div className="space-y-2">
                     <h2 className="text-xl font-bold text-slate-900 tracking-tight">Autenticación en Dos Pasos (2FA)</h2>
                     <p className="text-xs text-slate-500 leading-relaxed px-2">
-                        Como profesional sanitario (<strong className="text-slate-700">{emailParam}</strong>), debes introducir el código de verificación de seguridad.
+                        Como profesional sanitario (<strong className="text-slate-700">{emailParam}</strong>), introduce el código de seguridad.
                     </p>
                 </div>
 
@@ -115,9 +115,9 @@ function Verify2faContent() {
 
                     <button
                         type="submit"
-                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-500/25 transition"
+                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-lg transition"
                     >
-                        Verificar Código
+                        Verificar y Activar 2FA
                     </button>
                 </form>
             </div>
@@ -128,7 +128,7 @@ function Verify2faContent() {
 export default function Verify2faPage() {
     return (
         <Suspense fallback={<div className="text-center p-12 text-xs text-slate-400">Cargando...</div>}>
-            <Verify2faContent/>
+            <Verify2faContent />
         </Suspense>
     );
 }

@@ -36,6 +36,7 @@ export async function POST(request) {
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("Error actualizando el teléfono:", error);
+        return NextResponse.json({ error: "No se pudo actualizar el teléfono." }, { status: 500 });
     }
 }

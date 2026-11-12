@@ -2,39 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, onAuthStateChanged } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function MedicoDashboard() {
     const router = useRouter();
-    const [user, setUser] = useState(null);
+    const { user, loading } = useAuthGuard("profesional_sanitario,medico");
     const [citas, setCitas] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [citaSeleccionada, setCitaSeleccionada] = useState(null);
     const [diagnostico, setDiagnostico] = useState("");
     const [tratamiento, setTratamiento] = useState("");
     const [guardando, setGuardando] = useState(false);
     const [mensaje, setMensaje] = useState("");
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (!currentUser) {
-                router.push("/login");
-            } else {
-                setUser(currentUser);
-                cargarCitasConfirmadas(currentUser);
-            }
-        });
-        return () => unsubscribe();
-    }, [router]);
-
-    const cargarCitasConfirmadas = (currentUser) => {
-        setLoading(true);
+    function cargarCitasConfirmadas(currentUser) {
         try {
             const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             
             const citasDelMedico = citasLocales.filter((c) => {
-                // Se muestran si están confirmadas (aceptadas por admin o con estado correspondiente)
                 const esConfirmadaOrPendiente = c.estado === "Confirmada" || c.estado === "Pendiente";
                 const esSuCita = !c.medicoEmail || c.medicoEmail === currentUser?.email;
                 return esConfirmadaOrPendiente && esSuCita;
@@ -44,10 +30,19 @@ export default function MedicoDashboard() {
         } catch (error) {
             console.error("Error al cargar citas del médico:", error);
             setCitas([]);
-        } finally {
-            setLoading(false);
         }
-    };
+    }
+
+    useEffect(() => {
+        if (!user) return;
+        let active = true;
+        Promise.resolve().then(() => {
+            if (active) cargarCitasConfirmadas(user);
+        });
+        return () => {
+            active = false;
+        };
+    }, [user]);
 
     const handleAtenderCita = (cita) => {
         setCitaSeleccionada(cita);

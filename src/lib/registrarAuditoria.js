@@ -1,12 +1,6 @@
 import { db, auth } from './firebaseConfig';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
-/**
- * Registra un acceso en la auditoría de forma transparente desde el frontend
- * @param {string} pacienteId - ID del paciente consultado
- * @param {string} tipoEntidad - Ej: 'ACTO_CLINICO', 'RESULTADO', 'SOLICITUD_PRUEBA'
- * @param {string} entidadId - ID opcional del documento específico
- */
 export async function registrarAccesoAuditoria(pacienteId, tipoEntidad, entidadId = null) {
   try {
     const usuarioActual = auth.currentUser;

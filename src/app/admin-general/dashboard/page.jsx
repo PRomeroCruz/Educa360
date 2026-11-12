@@ -2,32 +2,19 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { signOut, onAuthStateChanged } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
+import { useAuthGuard } from "@/lib/useAuthGuard";
+
+const createLogId = () => Date.now();
 
 export default function AdminGeneralDashboard() {
     const router = useRouter();
-    const [user, setUser] = useState(null);
+    const { user, loading } = useAuthGuard("admin");
     const [citas, setCitas] = useState([]);
-    const [loading, setLoading] = useState(true);
-    
-    // Estado para controlar el popup de confirmación de eliminación/cancelación
     const [citaAEliminar, setCitaAEliminar] = useState(null);
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            if (!currentUser) {
-                router.push("/login");
-            } else {
-                setUser(currentUser);
-                cargarTodasLasCitas();
-                setLoading(false);
-            }
-        });
-        return () => unsubscribe();
-    }, [router]);
-
-    const cargarTodasLasCitas = () => {
+    function cargarTodasLasCitas() {
         try {
             const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             setCitas(citasLocales);
@@ -35,7 +22,18 @@ export default function AdminGeneralDashboard() {
             console.error("Error al cargar citas:", error);
             setCitas([]);
         }
-    };
+    }
+
+    useEffect(() => {
+        if (!user) return;
+        let active = true;
+        Promise.resolve().then(() => {
+            if (active) cargarTodasLasCitas();
+        });
+        return () => {
+            active = false;
+        };
+    }, [user]);
 
     const handleAceptarCita = (citaId) => {
         try {
@@ -59,7 +57,7 @@ export default function AdminGeneralDashboard() {
 
             const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
             const nuevoLog = {
-                id: Date.now(),
+                id: createLogId(),
                 accion: "ADMIN_ACEPTAR_CITA",
                 userEmail: user?.email || "admin",
                 descripcion: `El administrador aceptó la cita ID: ${citaId}`,
@@ -138,7 +136,6 @@ export default function AdminGeneralDashboard() {
                 </div>
             </header>
 
-            {/* POPUP MODAL DE CONFIRMACIÓN DE ELIMINACIÓN */}
             {citaAEliminar && (
                 <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl border border-red-100 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">

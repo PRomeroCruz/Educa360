@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { collection, getDocs } from "firebase/firestore";
 import { auth, db } from "@/lib/firebaseConfig";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function PedirCitaPage() {
     const router = useRouter();
-    const [user, setUser] = useState(null);
+    const { user, loading: authLoading } = useAuthGuard("paciente");
     const [loading, setLoading] = useState(true);
     const [especialidad, setEspecialidad] = useState("Medicina General");
     const [medicosDisponibles, setMedicosDisponibles] = useState([]);
@@ -24,21 +25,7 @@ export default function PedirCitaPage() {
 
     const fechaMinima = new Date().toISOString().split("T")[0];
 
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (!currentUser) {
-                router.push("/login");
-            } else {
-                setUser(currentUser);
-                await cargarMedicosFirestore();
-                calcularNotificaciones(currentUser);
-                setLoading(false);
-            }
-        });
-        return () => unsubscribe();
-    }, [router]);
-
-    const cargarMedicosFirestore = async () => {
+    async function cargarMedicosFirestore() {
         const medicosPorDefecto = [
             { nombre: "Dra. Laura Martínez", email: "medico@educa360.test" },
             { nombre: "Dr. Carlos Sanitario", email: "medico2@educa360.test" }
@@ -76,9 +63,9 @@ export default function PedirCitaPage() {
             setMedicosDisponibles(medicosPorDefecto);
             setMedicoSeleccionado(medicosPorDefecto[0].email);
         }
-    };
+    }
 
-    const calcularNotificaciones = (currentUser) => {
+    function calcularNotificaciones(currentUser) {
         try {
             const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             const citasUsuario = citasGuardadas.filter(
@@ -93,7 +80,22 @@ export default function PedirCitaPage() {
         } catch (e) {
             console.error("Error calculando notificaciones:", e);
         }
-    };
+    }
+
+    useEffect(() => {
+        if (!user) return;
+        let active = true;
+
+        (async () => {
+            await cargarMedicosFirestore();
+            calcularNotificaciones(user);
+            if (active) setLoading(false);
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, [user]);
 
     const handleFechaChange = (e) => {
         const selectedDateStr = e.target.value;
@@ -217,7 +219,7 @@ export default function PedirCitaPage() {
         setTimeout(() => router.push("/paciente/dashboard"), 1500);
     };
 
-    if (loading) {
+    if (authLoading || loading) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-slate-100">
                 <p className="text-slate-500 text-sm font-medium tracking-wide animate-pulse">Cargando formulario...</p>

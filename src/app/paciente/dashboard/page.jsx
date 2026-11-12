@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
+import { useAuthGuard } from "@/lib/useAuthGuard";
 
 export default function DashboardPacientePage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuthGuard("paciente");
   const [citas, setCitas] = useState([]);
   const [warningMessage, setWarningMessage] = useState(null);
   const [citaACancelar, setCitaACancelar] = useState(null);
@@ -18,27 +18,24 @@ export default function DashboardPacientePage() {
   const [leidos, setLeidos] = useState([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      if (!currentUser) {
-        router.push("/login");
-      } else {
-        setUser(currentUser);
-        
-        const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-        const citasUsuario = citasGuardadas.filter(
-          (cita) => cita.userId === currentUser.uid || cita.userEmail === currentUser.email
-        );
-        setCitas(citasUsuario);
+    if (!user) return;
+    let active = true;
+    Promise.resolve().then(() => {
+      const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+      const citasUsuario = citasGuardadas.filter(
+        (cita) => cita.userId === user.uid || cita.userEmail === user.email
+      );
+      const leidosGuardados = JSON.parse(localStorage.getItem(`diagnosticos_leidos_${user.uid}`) || "[]");
 
-        const leidosGuardados = JSON.parse(localStorage.getItem(`diagnosticos_leidos_${currentUser.uid}`) || "[]");
+      if (active) {
+        setCitas(citasUsuario);
         setLeidos(leidosGuardados);
-        
-        setLoading(false);
       }
     });
-
-    return () => unsubscribe();
-  }, [router]);
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const handleLogout = async () => {
     try {
