@@ -1,9 +1,67 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebaseConfig";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { useState, useEffect } from "react";
 
 export default function AccesoDenegadoPage() {
     const router = useRouter();
+    const [rutaDestino, setRutaDestino] = useState("/login");
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                setRutaDestino("/login");
+                return;
+            }
+
+            try {
+                const userDocRef = doc(db, "usuarios", user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                let rol = "paciente";
+                if (userDoc.exists()) {
+                    rol = userDoc.data().role || "paciente";
+                } else {
+                    rol = localStorage.getItem(`rol_${user.email}`) || "paciente";
+                }
+
+                const rolLower = rol.toLowerCase();
+                const emailLower = user.email.toLowerCase();
+
+                if (
+                    rolLower.includes("administración") || 
+                    rolLower.includes("administracion") || 
+                    emailLower.includes("administracion@") ||
+                    emailLower.includes("gestion")
+                ) {
+                    setRutaDestino("/admin-general/dashboard");
+                } 
+                else if (rolLower.includes("profesional") || rolLower.includes("medico") || emailLower.includes("medico")) {
+                    setRutaDestino("/medico/dashboard");
+                } 
+                else if (rolLower.includes("admin_sistema") || rolLower === "admin") {
+                    setRutaDestino("/admin/dashboard");
+                } 
+                else if (rolLower.includes("alumno") || rolLower.includes("practicas")) {
+                    setRutaDestino("/alumno/dashboard");
+                } 
+                else if (rolLower.includes("editor")) {
+                    setRutaDestino("/editor/dashboard");
+                } 
+                else {
+                    setRutaDestino("/paciente/dashboard");
+                }
+            } catch (error) {
+                console.error("Error al determinar la ruta de retorno:", error);
+                setRutaDestino("/login");
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     return (
         <main className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 text-slate-900">
@@ -23,10 +81,10 @@ export default function AccesoDenegadoPage() {
 
                 <div className="pt-2">
                     <button
-                        onClick={() => router.back()}
+                        onClick={() => router.push(rutaDestino)}
                         className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-lg transition"
                     >
-                        Volver a la página anterior
+                        Volver a mi panel principal
                     </button>
                 </div>
             </div>
