@@ -25,11 +25,11 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Instalar dependencias limpias
-        run: npm ci
+      - name: Instalar dependencias
+        run: npm install
 
       - name: Verificar linter y sintaxis
-        run: npm run lint
+        run: npx next lint
 
       - name: Comprobar compilación y tipos (Next.js Build)
         run: npm run build
@@ -44,11 +44,11 @@ jobs:
   despliegue-preproduccion:
     name: 2. Publicación en Entorno de Preproducción
     needs: comprobacion-tipos-y-pruebas
-    if: github.event_name == 'push' && github.ref == 'refs/heads/cambio-1'
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/cambio-1' || github.ref == 'refs/heads/develop'
 
     steps:
-      - name: Descargar código validado
+      - name: Descargar código del repositorio
         uses: actions/checkout@v4
 
       - name: Configurar Node.js 20
@@ -57,15 +57,20 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Instalar dependencias y generar build de preproducción
-        run: |
-          npm ci
-          npm run build
+      - name: Instalar dependencias
+        run: npm install
 
-      - name: Desplegar en Firebase Hosting (Canal Preproducción)
+      - name: Compilar aplicación para producción
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+
+      - name: Desplegar en Firebase Preproducción
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          repoToken: "${{ secrets.GITHUB_TOKEN }}"
-          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
-          channelId: preproduccion
-          projectId: "${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: pre-production
+          projectId: educa360-dev
