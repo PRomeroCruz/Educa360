@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { registrarLogSistema } from "@/lib/logger";
 
-export default function Verify2FAPage() {
+function VerifyForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const emailParam = searchParams.get("email") || "profesional@educa360.test";
@@ -191,5 +191,13 @@ export default function Verify2FAPage() {
                 Sistema de auditoría clínica activo · ID de sesión encriptado bajo SHA-256
             </p>
         </main>
+    );
+}
+
+export default function Verify2FAPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-[#090d16] flex items-center justify-center text-white text-xs font-mono">Cargando módulo de seguridad...</div>}>
+            <VerifyForm />
+        </Suspense>
     );
 }
