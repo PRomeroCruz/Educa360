@@ -1,0 +1,71 @@
+name: CI/CD - Validación y Despliegue en Preproducción (Educa360)
+
+on:
+  push:
+    branches:
+      - cambio-1
+      - develop
+  pull_request:
+    branches:
+      - cambio-1
+      - develop
+
+jobs:
+  comprobacion-tipos-y-pruebas:
+    name: 1. Comprobación de Tipos, Linter y Pruebas
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias limpias
+        run: npm ci
+
+      - name: Verificar linter y sintaxis
+        run: npm run lint
+
+      - name: Comprobar compilación y tipos (Next.js Build)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+
+      - name: Ejecutar suite de pruebas automáticas
+        run: npm test --if-present
+
+  despliegue-preproduccion:
+    name: 2. Publicación en Entorno de Preproducción
+    needs: comprobacion-tipos-y-pruebas
+    if: github.event_name == 'push' && github.ref == 'refs/heads/cambio-1'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código validado
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias y generar build de preproducción
+        run: |
+          npm ci
+          npm run build
+
+      - name: Desplegar en Firebase Hosting (Canal Preproducción)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}"
+          channelId: preproduccion
+          projectId: "${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}"
