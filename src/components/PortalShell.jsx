@@ -152,8 +152,17 @@ export default function PortalShell({
 
                                 {menuAbierto && (
                                     <div className="pl-7 space-y-1 border-l border-slate-800 ml-4 my-1">
-                                        <a href="/editor/dashboard" className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname?.includes("/editor") ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
+                                        <a 
+                                            href="/editor/dashboard" 
+                                            className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname === "/editor/dashboard" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}
+                                        >
                                             • Editor de Guías y Recursos
+                                        </a>
+                                        <a 
+                                            href="/editor/historial" 
+                                            className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname === "/editor/historial" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}
+                                        >
+                                            • Historial de Publicaciones
                                         </a>
                                     </div>
                                 )}

@@ -96,7 +96,7 @@ export default function AdminGeneralDashboardPage() {
                         Control Institucional
                     </span>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">
-                        Panel de Validación y Auditoría de Citas (ADMIN-GENERAL)
+                        Panel de Validación y Auditoría de Citas
                     </h1>
                     <p className="text-xs text-slate-500 mt-0.5">
                         Supervise, acepte o cancele las solicitudes de citas médicas de los pacientes
@@ -128,7 +128,7 @@ export default function AdminGeneralDashboardPage() {
                     <div className="overflow-x-auto pt-2">
                         {citas.length === 0 ? (
                             <p className="text-xs text-slate-500 py-6 text-center">
-                                No hay citas registradas en el sistema actualmente.
+                                No hay citas registradas en el sistema actualmente
                             </p>
                         ) : (
                             <table className="w-full text-left border-collapse text-xs">
