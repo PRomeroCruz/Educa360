@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
@@ -21,7 +21,8 @@ export default function MedicoDashboardPage() {
     const [modalAnularAbierto, setModalAnularAbierto] = useState(false);
     const [citaParaAnular, setCitaParaAnular] = useState(null);
 
-    const [diagnosticosInput, setDiagnosticosInput] = useState({});
+    const [citasDiagnosticando, setCitasDiagnosticando] = useState({});
+    const [textosDiagnostico, setTextosDiagnostico] = useState({});
 
     useEffect(() => {
         const timer = setTimeout(() => setLoading(false), 800);
@@ -66,8 +67,15 @@ export default function MedicoDashboardPage() {
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
+    const toggleDesplegableDiagnostico = (citaId) => {
+        setCitasDiagnosticando(prev => ({
+            ...prev,
+            [citaId]: !prev[citaId]
+        }));
+    };
+
     const guardarDiagnostico = (cita) => {
-        const textoDiagnostico = diagnosticosInput[cita.id];
+        const textoDiagnostico = textosDiagnostico[cita.id];
         if (!textoDiagnostico || !textoDiagnostico.trim()) return;
 
         const actualizadas = citas.map((c) => {
@@ -105,7 +113,8 @@ export default function MedicoDashboardPage() {
             tipo: "success"
         });
 
-        setDiagnosticosInput(prev => ({ ...prev, [cita.id]: "" }));
+        setCitasDiagnosticando(prev => ({ ...prev, [cita.id]: false }));
+        setTextosDiagnostico(prev => ({ ...prev, [cita.id]: "" }));
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
@@ -170,7 +179,7 @@ export default function MedicoDashboardPage() {
                             Panel de Consultas y Pacientes
                         </h1>
                         <p className="text-xs text-slate-500">
-                            Gestión de agenda activa, historiales médicos y emisión de diagnósticos certificados
+                            Gestión de agenda activa, historiales médicos y emisión de diagnósticos certificados.
                         </p>
                     </div>
                 </div>
@@ -223,7 +232,7 @@ export default function MedicoDashboardPage() {
                                 Agenda Activa · Consultas Aceptadas
                             </h2>
                             <p className="text-xs text-slate-500 mt-0.5">
-                                Listado exclusivo de citas confirmadas con opción de emitir diagnóstico clínico y tratamiento
+                                Listado exclusivo de citas confirmadas con opción de desplegar el panel de diagnóstico clínico.
                             </p>
                         </div>
                     </div>
@@ -238,7 +247,7 @@ export default function MedicoDashboardPage() {
                                 </div>
                                 <p className="text-xs font-bold text-slate-700">No hay consultas aceptadas pendientes</p>
                                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                                    Las nuevas citas aceptadas desde el panel administrativo aparecerán automáticamente en esta sección.
+                                    Las nuevas citas aceptadas aparecerán automáticamente en esta sección.
                                 </p>
                             </div>
                         ) : (
@@ -248,84 +257,121 @@ export default function MedicoDashboardPage() {
                                         <th className="py-3 px-6 font-semibold">Paciente</th>
                                         <th className="py-3 px-4 font-semibold">Especialidad</th>
                                         <th className="py-3 px-4 font-semibold">Fecha y Hora</th>
-                                        <th className="py-3 px-4 font-semibold">Motivo y Diagnóstico Clínico</th>
+                                        <th className="py-3 px-4 font-semibold">Motivo de Consulta</th>
                                         <th className="py-3 px-4 font-semibold">Estado</th>
-                                        <th className="py-3 px-6 font-semibold text-right">Acciones</th>
+                                        <th className="py-3 px-6 font-semibold text-right">Acciones Clínicas</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {citasDelMedicoAceptadas.map((cita) => (
-                                        <tr key={cita.id} className="hover:bg-slate-50/50 transition align-top">
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
-                                                        {(cita.userEmail || "P").charAt(0).toUpperCase()}
-                                                    </div>
-                                                    <div>
-                                                        <span className="font-bold text-slate-900 block truncate max-w-[180px]">
-                                                            {cita.userEmail}
+                                    {citasDelMedicoAceptadas.map((cita) => {
+                                        const estaDiagnosticando = citasDiagnosticando[cita.id];
+
+                                        return (
+                                            <Fragment key={cita.id}>
+                                                <tr className="hover:bg-slate-50/50 transition align-top">
+                                                    <td className="py-4 px-6">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200 font-bold flex items-center justify-center text-xs shrink-0 shadow-xs">
+                                                                {(cita.userEmail || "P").charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-bold text-slate-900 block truncate max-w-[180px]">
+                                                                    {cita.userEmail}
+                                                                </span>
+                                                                <span className="text-[10px] font-mono text-slate-400">Paciente Verificado</span>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="py-4 px-4 text-slate-700 font-medium">
+                                                        {cita.especialidad}
+                                                    </td>
+
+                                                    <td className="py-4 px-4 whitespace-nowrap">
+                                                        <div className="font-mono text-slate-800 font-semibold">{cita.fecha}</div>
+                                                        <div className="font-mono text-teal-700 text-[11px]">{cita.hora}</div>
+                                                    </td>
+
+                                                    <td className="py-4 px-4 text-slate-600 max-w-[220px]">
+                                                        {cita.motivo || "Sin observaciones"}
+                                                    </td>
+
+                                                    <td className="py-4 px-4 whitespace-nowrap">
+                                                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+                                                            {cita.estado}
                                                         </span>
-                                                        <span className="text-[10px] font-mono text-slate-400">Paciente Verificado</span>
-                                                    </div>
-                                                </div>
-                                            </td>
+                                                    </td>
 
-                                            <td className="py-4 px-4 text-slate-700 font-medium">
-                                                {cita.especialidad}
-                                            </td>
+                                                    <td className="py-4 px-6 text-right whitespace-nowrap space-x-2">
+                                                        <button
+                                                            onClick={() => toggleDesplegableDiagnostico(cita.id)}
+                                                            className={`px-3 py-2 font-bold text-xs rounded-xl transition cursor-pointer shadow-xs ${
+                                                                estaDiagnosticando 
+                                                                    ? "bg-teal-700 text-white shadow-teal-700/20" 
+                                                                    : "bg-teal-600 hover:bg-teal-700 text-white shadow-teal-600/20"
+                                                            }`}
+                                                        >
+                                                            {estaDiagnosticando ? "Cerrar Panel" : "Diagnosticar"}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => abrirModalAnular(cita)}
+                                                            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer shadow-xs"
+                                                        >
+                                                            Anular
+                                                        </button>
+                                                    </td>
+                                                </tr>
 
-                                            <td className="py-4 px-4 whitespace-nowrap">
-                                                <div className="font-mono text-slate-800 font-semibold">{cita.fecha}</div>
-                                                <div className="font-mono text-teal-700 text-[11px]">{cita.hora}</div>
-                                            </td>
+                                                {estaDiagnosticando && (
+                                                    <tr className="bg-teal-50/40 border-b border-teal-100">
+                                                        <td colSpan={6} className="p-5 px-6">
+                                                            <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm space-y-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs font-bold text-teal-900 flex items-center gap-2">
+                                                                        <span className="w-2 h-2 rounded-full bg-teal-600"></span>
+                                                                        Emisión de Dictamen y Diagnóstico Clínico
+                                                                    </span>
+                                                                    <span className="text-[10px] font-mono text-slate-400">Paciente: {cita.userEmail}</span>
+                                                                </div>
 
-                                            <td className="py-4 px-4 space-y-2.5 max-w-[280px]">
-                                                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60">
-                                                    <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-slate-400 block mb-0.5">Motivo de Consulta:</span>
-                                                    <p className="text-slate-700 text-xs">{cita.motivo || "Sin observaciones adicionales"}</p>
-                                                </div>
+                                                                {cita.diagnostico && (
+                                                                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900">
+                                                                        <strong>Último diagnóstico guardado:</strong> {cita.diagnostico}
+                                                                    </div>
+                                                                )}
 
-                                                {cita.diagnostico && (
-                                                    <div className="bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
-                                                        <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-emerald-800 block mb-0.5">Diagnóstico Registrado:</span>
-                                                        <p className="text-emerald-900 text-xs font-medium">{cita.diagnostico}</p>
-                                                    </div>
+                                                                <div className="space-y-1.5">
+                                                                    <textarea
+                                                                        rows={3}
+                                                                        placeholder="Escriba aquí el diagnóstico detallado, observaciones y pautas de tratamiento..."
+                                                                        value={textosDiagnostico[cita.id] || ""}
+                                                                        onChange={(e) => setTextosDiagnostico({ ...textosDiagnostico, [cita.id]: e.target.value })}
+                                                                        className="w-full p-3 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10 transition"
+                                                                    />
+                                                                </div>
+
+                                                                <div className="flex justify-end gap-2">
+                                                                    <button
+                                                                        onClick={() => toggleDesplegableDiagnostico(cita.id)}
+                                                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer border border-slate-200"
+                                                                    >
+                                                                        Cancelar
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => guardarDiagnostico(cita)}
+                                                                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-md shadow-emerald-600/20"
+                                                                    >
+                                                                        Guardar y Enviar Diagnóstico
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
                                                 )}
-
-                                                <div className="flex gap-1.5 pt-1">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Redactar diagnóstico médico..."
-                                                        value={diagnosticosInput[cita.id] || ""}
-                                                        onChange={(e) => setDiagnosticosInput({ ...diagnosticosInput, [cita.id]: e.target.value })}
-                                                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10 transition"
-                                                    />
-                                                    <button
-                                                        onClick={() => guardarDiagnostico(cita)}
-                                                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition whitespace-nowrap cursor-pointer shadow-xs shadow-emerald-600/20"
-                                                    >
-                                                        Guardar
-                                                    </button>
-                                                </div>
-                                            </td>
-
-                                            <td className="py-4 px-4 whitespace-nowrap">
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-200">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                                    {cita.estado}
-                                                </span>
-                                            </td>
-
-                                            <td className="py-4 px-6 text-right whitespace-nowrap">
-                                                <button
-                                                    onClick={() => abrirModalAnular(cita)}
-                                                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer shadow-xs"
-                                                >
-                                                    Anular Cita
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                            </Fragment>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         )}
