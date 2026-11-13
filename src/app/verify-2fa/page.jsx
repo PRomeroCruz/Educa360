@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
-import { registrarLogSistema } from "@/app/admin/dashboard/page";
+import { registrarLogSistema } from "@/lib/logger";
 
 export default function Verify2FAPage() {
     const router = useRouter();
