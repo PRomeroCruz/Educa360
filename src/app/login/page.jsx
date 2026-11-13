@@ -1,18 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { signInWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseConfig";
-import { dashboardParaRol, esRutaInterna } from "@/lib/roles";
-import { mensajeAmigable } from "@/lib/mensajesAmigables";
+import { doc, getDoc } from "firebase/firestore";
+import { dashboardParaRol } from "@/lib/roles";
 
-function LoginContent() {
+export default function LoginPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const motivo = searchParams.get("motivo");
-    const redirect = searchParams.get("redirect");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
@@ -27,154 +23,143 @@ function LoginContent() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
-            try {
-                await user.reload();
-            } catch (err) {
-                console.warn("Aviso: No se pudo recargar el usuario:", err);
-            }
+            if (!user.emailVerified) {
+                let rolTemporal = "paciente";
+                if (email.includes("admin")) rolTemporal = "admin";
+                else if (email.includes("medico") || email.includes("profesional")) rolTemporal = "profesional_sanitario";
+                else if (email.includes("editor")) rolTemporal = "editor";
+                else if (email.includes("alumno")) rolTemporal = "alumno";
 
-            const currentUser = auth.currentUser || user;
-
-            if (!currentUser.emailVerified) {
-                await sendEmailVerification(currentUser);
-                router.push(`/register/verify-notice?email=${encodeURIComponent(currentUser.email)}&role=profesional_sanitario`);
+                router.push(`/register/verify-notice?email=${encodeURIComponent(user.email)}&role=${rolTemporal}`);
                 return;
             }
 
-            let rolLimpio = "paciente";
-            try {
-                const userDocRef = doc(db, "usuarios", currentUser.uid);
-                const userDoc = await getDoc(userDocRef);
-                if (userDoc.exists()) {
-                    rolLimpio = userDoc.data().role || "paciente";
+            let rolFinal = localStorage.getItem(`rol_${user.email}`);
+
+            if (!rolFinal) {
+                try {
+                    const userDocRef = doc(db, "usuarios", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    if (userDoc.exists()) {
+                        rolFinal = userDoc.data().role;
+                    }
+                } catch (err) {
+                    console.warn("No se pudo leer Firestore:", err);
                 }
-            } catch (e) {
-                console.error("Error leyendo Firestore:", e);
-                rolLimpio = localStorage.getItem(`rol_${currentUser.email}`) || "paciente";
             }
 
-            localStorage.setItem(`rol_${currentUser.email}`, rolLimpio);
+            if (!rolFinal) {
+                if (email.includes("admin")) rolFinal = "admin";
+                else if (email.includes("medico") || email.includes("profesional")) rolFinal = "profesional_sanitario";
+                else if (email.includes("editor")) rolFinal = "editor";
+                else if (email.includes("alumno")) rolFinal = "alumno";
+                else rolFinal = "paciente";
+            }
 
-            if (
-                rolLimpio === "profesional_sanitario" || 
-                rolLimpio.includes("medico") || 
-                currentUser.email.toLowerCase().includes("medico")
-            ) {
-                const redirectParam = esRutaInterna(redirect)
-                    ? `&redirect=${encodeURIComponent(redirect)}`
-                    : "";
-                router.push(`/verify-2fa?email=${encodeURIComponent(currentUser.email)}${redirectParam}`);
+            localStorage.setItem(`rol_${user.email}`, rolFinal);
+
+            const emailLower = (user.email || "").toLowerCase();
+            const roleLower = (rolFinal || "").toLowerCase();
+
+            if (emailLower.includes("medico") || roleLower.includes("profesional") || roleLower.includes("medico")) {
+                router.push(`/verify-2fa?email=${encodeURIComponent(user.email)}`);
                 return;
             }
 
-            const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-            localStorage.setItem("logs_educa360", JSON.stringify([
-                {
-                    id: Date.now(),
-                    accion: "LOGIN_EXITOSO",
-                    userEmail: currentUser.email,
-                    descripcion: `Inicio de sesión correcto con rol: ${rolLimpio}`,
-                    fecha: new Date().toLocaleString(),
-                    tipo: "success"
-                },
-                ...logsActuales
-            ]));
-
-            router.push(esRutaInterna(redirect) ? redirect : dashboardParaRol(rolLimpio));
-
+            router.push(dashboardParaRol(rolFinal));
         } catch (err) {
-            console.error("Error en el login:", err);
-            setError(mensajeAmigable(err, "Correo o contraseña incorrectos."));
-        } finally {
+            console.error("Error en inicio de sesión:", err);
+            setError("Credenciales incorrectas o usuario no registrado en el sistema.");
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-slate-800">
-                <div className="text-center space-y-2">
-                    <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-xl shadow-md">
-                        E
-                    </div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                        Educa360
-                    </h1>
-                    <p className="text-xs text-slate-500 font-medium">
-                        Plataforma Segura de Gestión Institucional y Sanitaria
-                    </p>
-                </div>
+        <main className="min-h-screen bg-[#090d16] flex flex-col items-center justify-center p-6 relative overflow-hidden antialiased">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-teal-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-12 -left-12 w-56 h-56 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
 
-                {motivo === "sesion" && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg text-center font-medium">
-                        Tu sesión ha caducado. Inicia sesión de nuevo para continuar.
-                    </div>
-                )}
-
-                {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg text-center font-medium">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Correo Electrónico
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            placeholder="usuario@dominio.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Contraseña
-                        </label>
-                        <input
-                            type="password"
-                            required
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-md transition disabled:opacity-50"
-                    >
-                        {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
-                    </button>
-                </form>
-
-                <div className="text-center pt-2 border-t border-slate-100 space-y-2">
-                    <p className="text-xs text-slate-500">
-                        ¿No tienes una cuenta?{" "}
-                        <button onClick={() => router.push("/register")} className="text-blue-600 font-bold hover:underline">
-                            Regístrate aquí
-                        </button>
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                        Control de acceso con verificación de correo y doble factor obligatorio para sanitarios.
-                    </p>
-                </div>
+        <div className="flex flex-col items-center text-center mb-8 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-[#009688] text-white font-bold text-lg flex items-center justify-center shadow-lg shadow-teal-900/40 mb-4">
+            E
             </div>
-        </main>
-    );
-}
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+            Educa360 Salud
+            </h1>
+            <p className="text-xs font-mono text-slate-400 mt-1.5 tracking-wide">
+            Plataforma Global de Gestión Clínica y Citas
+            </p>
+        </div>
 
-export default function LoginPage() {
-    return (
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-slate-900 text-sm text-slate-400">Cargando acceso seguro...</div>}>
-            <LoginContent />
-        </Suspense>
+        <div className="bg-[#f8fafc] rounded-[28px] shadow-2xl max-w-[440px] w-full p-8 sm:p-10 relative z-10">
+            <div className="text-center space-y-1.5 mb-7">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Acceso al Portal Clínico
+            </h2>
+            <p className="text-xs text-slate-500">
+                Introduzca sus credenciales para habilitar su sesión
+            </p>
+            </div>
+
+            {error && (
+            <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium text-center">
+                {error}
+            </div>
+            )}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                CORREO ELECTRÓNICO
+                </label>
+                <input
+                type="email"
+                required
+                placeholder="usuario@educa360.test"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                CONTRASEÑA
+                </label>
+                <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="pt-2">
+                <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 bg-[#009688] hover:bg-[#00796b] text-white font-bold text-xs rounded-xl shadow-lg shadow-teal-700/25 transition cursor-pointer disabled:opacity-50"
+                >
+                {loading ? "Verificando credenciales..." : "Iniciar sesión segura"}
+                </button>
+            </div>
+            </form>
+
+            <div className="mt-7 pt-5 border-t border-slate-200/70 text-center">
+            <p className="text-xs text-slate-500">
+                ¿Aún no dispone de una cuenta?{" "}
+                <a href="/register" className="font-bold text-[#009688] hover:underline">
+                Regístrese aquí
+                </a>
+            </p>
+            </div>
+        </div>
+
+        <p className="text-[10px] font-mono text-slate-500 mt-8 text-center relative z-10">
+            Entorno protegido con cifrado TLS 1.3 · Control de acceso de doble factor
+        </p>
+        </main>
     );
 }

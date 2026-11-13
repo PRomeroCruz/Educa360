@@ -5,100 +5,68 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useAuthGuard } from "@/lib/useAuthGuard";
+import PortalShell from "@/components/PortalShell";
+import { Tarjeta } from "@/components/ComponentesUI";
+import { EstadoCargando } from "@/components/EstadosUI";
 
-const createLogId = () => Date.now();
-
-export default function AdminGeneralDashboard() {
+export default function AdminGeneralDashboardPage() {
     const router = useRouter();
-    const { user, loading } = useAuthGuard("admin");
-    const [citas, setCitas] = useState([]);
-    const [citaAEliminar, setCitaAEliminar] = useState(null);
+    const { user, loading: authLoading } = useAuthGuard("admin-general");
 
-    function cargarTodasLasCitas() {
-        try {
-            const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            setCitas(citasLocales);
-        } catch (error) {
-            console.error("Error al cargar citas:", error);
-            setCitas([]);
-        }
-    }
+    const [citas, setCitas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [mensaje, setMensaje] = useState("");
+    const [tipoMensaje, setTipoMensaje] = useState("info");
+
+    const [modalAbierto, setModalAbierto] = useState(false);
+    const [citaSeleccionada, setCitaSeleccionada] = useState(null);
+    const [accionPendiente, setAccionPendiente] = useState(null);
 
     useEffect(() => {
-        if (!user) return;
-        let active = true;
-        Promise.resolve().then(() => {
-            if (active) cargarTodasLasCitas();
-        });
-        return () => {
-            active = false;
-        };
-    }, [user]);
+        const timer = setTimeout(() => setLoading(false), 800);
 
-    const handleAceptarCita = (citaId) => {
         try {
-            const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            const nuevasCitas = citasLocales.map((c) => {
-                if (String(c.id) === String(citaId)) {
-                    const medicoEmailAsignado = c.medicoEmail || "medico@educa360.test";
-                    const medicoNombreAsignado = c.medicoAsignado || "Dra. Laura Martínez";
-                    
-                    return { 
-                        ...c, 
-                        estado: "Confirmada", 
-                        medicoEmail: medicoEmailAsignado,
-                        medicoAsignado: medicoNombreAsignado
-                    };
-                }
-                return c;
-            });
-            localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitas));
-            setCitas(nuevasCitas);
-
-            const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-            const nuevoLog = {
-                id: createLogId(),
-                accion: "ADMIN_ACEPTAR_CITA",
-                userEmail: user?.email || "admin",
-                descripcion: `El administrador aceptó la cita ID: ${citaId}`,
-                fecha: new Date().toLocaleString(),
-                tipo: "success"
-            };
-            localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
-        } catch (error) {
-            console.error("Error al aceptar cita:", error);
+            const guardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+            setCitas(guardadas);
+        } catch {
+            setCitas([]);
         }
+
+        if (!authLoading) {
+            setLoading(false);
+            clearTimeout(timer);
+        }
+
+        return () => clearTimeout(timer);
+    }, [authLoading]);
+
+    const solicitarConfirmacion = (cita, nuevoEstado) => {
+        setCitaSeleccionada(cita);
+        setAccionPendiente(nuevoEstado);
+        setModalAbierto(true);
     };
 
-    const confirmarEliminacionCita = () => {
-        if (!citaAEliminar) return;
+    const confirmarAccion = () => {
+        if (!citaSeleccionada || !accionPendiente) return;
 
-        try {
-            const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            const nuevasCitas = citasLocales.map((c) => {
-                if (String(c.id) === String(citaAEliminar.id)) {
-                    return { ...c, estado: "Cancelada" };
-                }
-                return c;
-            });
-            localStorage.setItem("citas_educa360", JSON.stringify(nuevasCitas));
-            setCitas(nuevasCitas);
+        const actualizadas = citas.map((c) => {
+            if (c.id === citaSeleccionada.id) {
+                return { ...c, estado: accionPendiente };
+            }
+            return c;
+        });
 
-            const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-            const nuevoLog = {
-                id: Date.now(),
-                accion: "ADMIN_CANCELAR_CITA",
-                userEmail: user?.email || "admin",
-                descripcion: `El administrador canceló la cita de ${citaAEliminar.especialidad}`,
-                fecha: new Date().toLocaleString(),
-                tipo: "warning"
-            };
-            localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
-        } catch (error) {
-            console.error("Error al cancelar cita:", error);
-        } finally {
-            setCitaAEliminar(null);
-        }
+        setCitas(actualizadas);
+        localStorage.setItem("citas_educa360", JSON.stringify(actualizadas));
+        
+        setMensaje(`La cita de ${citaSeleccionada.userEmail} ha sido marcada como: ${accionPendiente}`);
+        setTipoMensaje(accionPendiente === "Aceptada" ? "success" : "error");
+        
+        setModalAbierto(false);
+        setCitaSeleccionada(null);
+        setAccionPendiente(null);
+
+        setTimeout(() => setMensaje(""), 4000);
     };
 
     const handleCerrarSesion = async () => {
@@ -108,156 +76,136 @@ export default function AdminGeneralDashboard() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-100">
-                <p className="text-slate-500 text-sm font-medium tracking-wide animate-pulse">Cargando panel de administración...</p>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+                <EstadoCargando mensaje="Cargando panel de administración general..." />
             </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-950 pb-12 relative">
-            <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
-                <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                            E
+        <PortalShell
+            rolLabel="Administración General"
+            rolTipo="admin-general"
+            usuarioNombre="Administrador General"
+            usuarioEmail={user?.email || "administracion@educa360.test"}
+            onLogout={handleCerrarSesion}
+        >
+            <div className="space-y-6 relative">
+                <div>
+                    <span className="text-[11px] font-mono uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
+                        Control Institucional
+                    </span>
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">
+                        Panel de Validación y Auditoría de Citas (ADMIN-GENERAL)
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        Supervise, acepte o cancele las solicitudes de citas médicas de los pacientes
+                    </p>
+                </div>
+
+                {mensaje && (
+                    <div className={`p-4 rounded-2xl border text-xs font-medium flex items-center space-x-3 transition-all shadow-xs ${
+                        tipoMensaje === "success" 
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
+                            : "bg-rose-50 border-rose-200 text-rose-800"
+                    }`}>
+                        <div className={`w-6 h-6 rounded-xl flex items-center justify-center shrink-0 ${
+                            tipoMensaje === "success" ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
+                        }`}>
+                            {tipoMensaje === "success" ? "✓" : "!"}
                         </div>
                         <div>
-                            <h1 className="text-sm font-semibold text-white tracking-wide">Educa360</h1>
-                            <p className="text-[11px] text-slate-400">Panel de Administración General</p>
+                            <strong className="font-bold block text-[11px] uppercase tracking-wider">Notificación del Sistema</strong>
+                            <span>{mensaje}</span>
                         </div>
                     </div>
-                    <button
-                        onClick={handleCerrarSesion}
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
-                    >
-                        Cerrar Sesión
-                    </button>
-                </div>
-            </header>
+                )}
 
-            {citaAEliminar && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl border border-red-100 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-200 shrink-0">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-900">¿Estás seguro de cancelar esta cita?</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Se cancelará la cita del paciente <strong>{citaAEliminar.userEmail}</strong> ({citaAEliminar.especialidad}) prevista para el {citaAEliminar.fecha}.
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end space-x-2 pt-2">
-                            <button
-                                onClick={() => setCitaAEliminar(null)}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
-                            >
-                                Volver
-                            </button>
-                            <button
-                                onClick={confirmarEliminacionCita}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
-                            >
-                                Sí, cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm">
-                            Rol: Administración General
-                        </span>
-                        <h2 className="text-xl font-bold text-slate-900 mt-2">Supervisión Global de Citas</h2>
-                        <p className="text-slate-500 text-xs mt-0.5">Control y gestión de todas las citas solicitadas en la plataforma.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 font-mono">
-                            {user?.email}
-                        </span>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-                        <h3 className="text-sm font-bold text-slate-900">Listado General de Citas ({citas.length})</h3>
-                    </div>
-
-                    {citas.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400 text-xs">
-                            No hay citas registradas en el sistema.
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                <Tarjeta
+                    titulo="Listado General de Citas del Sistema"
+                    subtitulo="Gestión de solicitudes pendientes, confirmadas, completadas y canceladas"
+                >
+                    <div className="overflow-x-auto pt-2">
+                        {citas.length === 0 ? (
+                            <p className="text-xs text-slate-500 py-6 text-center">
+                                No hay citas registradas en el sistema actualmente.
+                            </p>
+                        ) : (
+                            <table className="w-full text-left border-collapse text-xs">
                                 <thead>
-                                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                                        <th className="py-3 px-5">Paciente (Correo)</th>
-                                        <th className="py-3 px-5">Médico Asignado</th>
-                                        <th className="py-3 px-5">Especialidad</th>
-                                        <th className="py-3 px-5">Fecha / Hora</th>
-                                        <th className="py-3 px-5">Estado</th>
-                                        <th className="py-3 px-5 text-right">Acciones</th>
+                                    <tr className="border-b border-slate-200 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
+                                        <th className="pb-3 font-semibold">Paciente</th>
+                                        <th className="pb-3 font-semibold">Especialidad / Médico</th>
+                                        <th className="pb-3 font-semibold">Fecha y Hora</th>
+                                        <th className="pb-3 font-semibold">Motivo</th>
+                                        <th className="pb-3 font-semibold">Estado Actual</th>
+                                        <th className="pb-3 font-semibold text-right">Acciones de Validación</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+                                <tbody className="divide-y divide-slate-100">
                                     {citas.map((cita) => {
                                         const estadoLower = (cita.estado || "pendiente").toLowerCase();
-                                        const esPendiente = estadoLower === "pendiente";
-                                        const esActiva = estadoLower === "confirmada" || estadoLower === "aceptada";
-                                        const esCompletada = estadoLower === "completada" || estadoLower === "atendida";
-                                        const esCancelada = estadoLower === "cancelada" || estadoLower === "anulada";
+                                        const esPendiente = estadoLower.includes("pendiente");
+                                        const esAceptada = estadoLower.includes("aceptada") || estadoLower.includes("confirmada");
+                                        
+                                        const esFinalizadaOCancelada = 
+                                            estadoLower.includes("cancelada") || 
+                                            estadoLower.includes("anulada") || 
+                                            estadoLower.includes("completada");
 
                                         return (
-                                            <tr key={cita.id} className="hover:bg-slate-50/60 transition">
-                                                <td className="py-3.5 px-5 font-mono text-slate-900">
-                                                    {cita.userEmail || cita.nombrePaciente || "No especificado"}
+                                            <tr key={cita.id} className="hover:bg-slate-50/80 transition">
+                                                <td className="py-3.5 pr-3 font-medium text-slate-900">
+                                                    {cita.userEmail}
                                                 </td>
-                                                <td className="py-3.5 px-5 text-slate-600">
-                                                    {cita.medicoAsignado || cita.medicoEmail || "Sin asignar"}
+                                                <td className="py-3.5 pr-3 text-slate-600">
+                                                    <div className="font-semibold text-slate-900">{cita.especialidad}</div>
+                                                    <div className="text-[11px] text-slate-500">{cita.medico}</div>
                                                 </td>
-                                                <td className="py-3.5 px-5 text-slate-600">
-                                                    {cita.especialidad}
+                                                <td className="py-3.5 pr-3 text-slate-600 whitespace-nowrap">
+                                                    <div className="font-medium text-slate-900">{cita.fecha}</div>
+                                                    <div className="text-[11px] font-mono text-teal-700">{cita.hora}</div>
                                                 </td>
-                                                <td className="py-3.5 px-5 text-slate-600">
-                                                    {cita.fecha} a las {cita.hora}
+                                                <td className="py-3.5 pr-3 text-slate-500 max-w-[180px] truncate">
+                                                    {cita.motivo || "Sin observaciones"}
                                                 </td>
-                                                <td className="py-3.5 px-5">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-semibold ${
-                                                        esActiva ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                                                        esCompletada ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                                                        esCancelada ? "bg-red-50 text-red-700 border border-red-200" :
-                                                        "bg-amber-50 text-amber-700 border border-amber-200"
-                                                    }`}>
+                                                <td className="py-3.5 pr-3">
+                                                    <span
+                                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide border ${
+                                                            esPendiente
+                                                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                                : esAceptada
+                                                                ? "bg-teal-50 text-teal-700 border-teal-200"
+                                                                : estadoLower.includes("completada")
+                                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                                : "bg-rose-50 text-rose-700 border-rose-200"
+                                                        }`}
+                                                    >
                                                         {cita.estado || "Pendiente"}
                                                     </span>
                                                 </td>
-                                                <td className="py-3.5 px-5 text-right space-x-2">
-                                                    {esPendiente ? (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleAceptarCita(cita.id)}
-                                                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition shadow-sm"
-                                                            >
-                                                                Aceptar
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setCitaAEliminar(cita)}
-                                                                className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded text-[11px] font-semibold transition"
-                                                            >
-                                                                Eliminar
-                                                            </button>
-                                                        </>
+                                                <td className="py-3.5 text-right whitespace-nowrap">
+                                                    {esFinalizadaOCancelada ? (
+                                                        <span className="text-[11px] font-mono text-slate-300">
+                                                            —
+                                                        </span>
                                                     ) : (
-                                                        <span className="text-slate-400 text-[11px] italic">Sin acciones</span>
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            {(esPendiente || !esAceptada) && (
+                                                                <button
+                                                                    onClick={() => solicitarConfirmacion(cita, "Aceptada")}
+                                                                    className="px-2.5 py-1.5 bg-[#009688] hover:bg-[#00796b] text-white font-semibold text-[11px] rounded-lg shadow-xs transition cursor-pointer"
+                                                                >
+                                                                    Aceptar
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => solicitarConfirmacion(cita, "Cancelada")}
+                                                                className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] rounded-lg border border-rose-200 transition cursor-pointer"
+                                                            >
+                                                                Cancelar
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -265,10 +213,59 @@ export default function AdminGeneralDashboard() {
                                     })}
                                 </tbody>
                             </table>
+                        )}
+                    </div>
+                </Tarjeta>
+
+                {modalAbierto && citaSeleccionada && (
+                    <div className="fixed inset-0 bg-[#090d16]/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-[#f8fafc] rounded-[28px] shadow-2xl border border-slate-100 max-w-[440px] w-full p-8 sm:p-10 space-y-6 text-center relative z-10">
+                            
+                            <div className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border shadow-xs shrink-0 ${
+                                accionPendiente === "Cancelada" 
+                                    ? "bg-rose-50 text-rose-600 border-rose-100" 
+                                    : "bg-teal-50 text-[#009688] border-teal-100"
+                            }`}>
+                                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    {accionPendiente === "Cancelada" ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    )}
+                                </svg>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                                    {accionPendiente === "Cancelada" ? "¿Desea cancelar esta cita médica?" : "¿Desea aceptar esta cita médica?"}
+                                </h3>
+                                <p className="text-xs text-slate-500 leading-relaxed px-2">
+                                    Está a punto de modificar la cita del paciente <strong className="text-slate-700">{citaSeleccionada.userEmail}</strong> programada para el <strong className="text-slate-700">{citaSeleccionada.fecha}</strong> a las <strong className="text-slate-700">{citaSeleccionada.hora}</strong>.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button
+                                    onClick={() => setModalAbierto(false)}
+                                    className="w-full py-3.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200/80 shadow-xs cursor-pointer"
+                                >
+                                    Volver
+                                </button>
+                                <button
+                                    onClick={confirmarAccion}
+                                    className={`w-full py-3.5 text-white font-bold text-xs rounded-xl shadow-lg transition cursor-pointer ${
+                                        accionPendiente === "Cancelada"
+                                            ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
+                                            : "bg-[#009688] hover:bg-[#00796b] shadow-teal-700/25"
+                                    }`}
+                                >
+                                    {accionPendiente === "Cancelada" ? "Sí, cancelar" : "Sí, aceptar"}
+                                </button>
+                            </div>
                         </div>
-                    )}
-                </div>
-            </section>
-        </main>
+                    </div>
+                )}
+            </div>
+        </PortalShell>
     );
 }

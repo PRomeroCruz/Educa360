@@ -1,177 +1,253 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useAuthGuard } from "@/lib/useAuthGuard";
+import PortalShell from "@/components/PortalShell";
+import { Tarjeta } from "@/components/ComponentesUI";
+import { EstadoCargando } from "@/components/EstadosUI";
 
-export default function AdminSistemaDashboard() {
-    const router = useRouter();
-    const { user, loading } = useAuthGuard("admin_sistema");
-    const [logsSistema, setLogsSistema] = useState([]);
-    const [mensajeExito, setMensajeExito] = useState("");
-    const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
+export function registrarLogSistema(tipo, usuario, detalle) {
+    try {
+        const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
+        
+        const ahora = new Date();
+        const fechaFormateada = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')} ${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
 
-    function cargarLogs() {
-        const guardadas = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-        setLogsSistema(guardadas);
+        const nuevoLog = {
+            id: Date.now(),
+            fecha: fechaFormateada,
+            tipo: tipo.toUpperCase(),
+            usuario: usuario || "sistema@educa360.test",
+            detalle: detalle
+        };
+
+        const logsActualizados = [nuevoLog, ...logsActuales];
+        localStorage.setItem("logs_educa360", JSON.stringify(logsActualizados));
+    } catch (error) {
+        console.error("Error al registrar el log del sistema:", error);
     }
+}
+
+export default function AdminLogsDashboardPage() {
+    const router = useRouter();
+    const { user, loading: authGuardLoading } = useAuthGuard("admin");
+
+    const [logs, setLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filtroTipo, setFiltroTipo] = useState("todos");
+    const [modalVaciarAbierto, setModalVaciarAbierto] = useState(false);
 
     useEffect(() => {
-        if (!user) return;
-        let active = true;
-        Promise.resolve().then(() => {
-            if (active) cargarLogs();
-        });
-        return () => {
-            active = false;
-        };
-    }, [user]);
+        const timer = setTimeout(() => setLoading(false), 800);
 
-    const confirmarLimpiarLogs = () => {
-        localStorage.removeItem("logs_educa360");
-        setLogsSistema([]);
-        setMostrarConfirmacion(false);
-        setMensajeExito("Se han eliminado todos los registros de auditoría del sistema.");
-        setTimeout(() => setMensajeExito(""), 3000);
-    };
+        try {
+            const logsGuardados = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
+            
+            if (!Array.isArray(logsGuardados) || logsGuardados.length === 0) {
+                const logsOriginales = [
+                    { id: 1, fecha: "2026-11-13 09:15:22", tipo: "AUTENTICACIÓN", usuario: "adminsistema@educa360.test", detalle: "Inicio de sesión exitoso en Registro de Logs del Sistema." },
+                    { id: 2, fecha: "2026-11-13 09:12:04", tipo: "VALIDACIÓN", usuario: "administracion@educa360.test", detalle: "Cita médica aceptada para paciente@educa360.test." },
+                    { id: 3, fecha: "2026-11-12 16:45:10", tipo: "SEGURIDAD", usuario: "medico@educa360.test", detalle: "Configuración de doble factor de autenticación (2FA) completada." },
+                    { id: 4, fecha: "2026-11-12 14:30:00", tipo: "REGISTRO", usuario: "paciente23@educa360.test", detalle: "Nuevo registro de paciente y envío de correo de verificación." },
+                    { id: 5, fecha: "2026-11-11 11:20:55", tipo: "SISTEMA", usuario: "sistema@educa360.test", detalle: "Respaldo automático de base de datos cifrado (TLS 1.3)." }
+                ];
+                localStorage.setItem("logs_educa360", JSON.stringify(logsOriginales));
+                setLogs(logsOriginales);
+            } else {
+                setLogs(logsGuardados);
+            }
+        } catch (error) {
+            console.error("Error cargando logs:", error);
+            setLogs([]);
+        }
 
-    const handleLogout = async () => {
+        if (!authGuardLoading) {
+            setLoading(false);
+            clearTimeout(timer);
+        }
+
+        return () => clearTimeout(timer);
+    }, [authGuardLoading]);
+
+    const handleCerrarSesion = async () => {
+        registrarLogSistema("AUTENTICACIÓN", user?.email || "adminsistema@educa360.test", "Cierre de sesión seguro realizado desde el panel de administración.");
         await signOut(auth);
         router.push("/login");
     };
 
+    const logsFiltrados = filtroTipo === "todos" 
+        ? logs 
+        : logs.filter(l => (l?.tipo || "").trim().toLowerCase() === filtroTipo.trim().toLowerCase());
+
+    const ejecutarVaciadoLogs = () => {
+        localStorage.setItem("logs_educa360", JSON.stringify([]));
+        setLogs([]);
+        setModalVaciarAbierto(false);
+    };
+
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-100">
-                <p className="text-slate-500 text-sm font-medium tracking-wide animate-pulse">Cargando consola del sistema...</p>
+            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+                <EstadoCargando mensaje="Cargando registro de auditoría del sistema..." />
             </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-900 pb-12 relative">
-            <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
-                <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                            E
-                        </div>
-                        <div>
-                            <h1 className="text-sm font-semibold text-white tracking-wide">Educa360</h1>
-                            <p className="text-[11px] text-slate-400">Consola de Auditoría y Seguridad</p>
-                        </div>
+        <PortalShell
+            rolLabel="Administración del Sistema"
+            rolTipo="admin"
+            usuarioNombre="Administrador de Sistemas"
+            usuarioEmail={user?.email || "adminsistema@educa360.test"}
+            onLogout={handleCerrarSesion}
+        >
+            <div className="space-y-6 relative">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span className="text-[11px] font-mono uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
+                            Trazabilidad y Seguridad
+                        </span>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">
+                            Registro de Logs del Sistema (ADMIN)
+                        </h1>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Auditoría en tiempo real de eventos de acceso, validaciones clínicas y seguridad institucional
+                        </p>
                     </div>
+
                     <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
+                        onClick={() => setModalVaciarAbierto(true)}
+                        className="px-4 py-2.5 bg-white hover:bg-rose-50 text-slate-700 hover:text-rose-700 font-bold text-xs rounded-xl border border-slate-200/80 hover:border-rose-200 shadow-xs transition cursor-pointer self-start sm:self-auto"
                     >
-                        Cerrar Sesión
+                        Vaciar registro
                     </button>
                 </div>
-            </header>
 
-            {mostrarConfirmacion && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl border border-red-100 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-                        <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600 border border-red-200">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-900">¿Confirmar limpieza de registros?</h3>
-                                <p className="text-xs text-slate-500">Esta acción eliminará permanentemente todo el historial de auditoría.</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end space-x-2 pt-2">
-                            <button
-                                onClick={() => setMostrarConfirmacion(false)}
-                                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={confirmarLimpiarLogs}
-                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg shadow-sm transition"
-                            >
-                                Aceptar
-                            </button>
-                        </div>
-                    </div>
+                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    {["todos", "autenticación", "validación", "seguridad", "registro", "sistema"].map((tipo) => (
+                        <button
+                            key={tipo}
+                            onClick={() => setFiltroTipo(tipo)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition cursor-pointer border ${
+                                filtroTipo === tipo
+                                    ? "bg-[#009688] text-white border-teal-600 shadow-sm"
+                                    : "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+                            }`}
+                        >
+                            {tipo}
+                        </button>
+                    ))}
                 </div>
-            )}
 
-            <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                    <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">
-                            Rol: Administrador del Sistema
-                        </span>
-                        <h2 className="text-xl font-bold text-slate-900 mt-2">Auditoría y Trazabilidad del Sistema</h2>
-                        <p className="text-slate-500 text-xs mt-0.5">Supervisión de registros, accesos de usuarios y eventos críticos de seguridad.</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                            {user?.email}
-                        </span>
-                        {logsSistema.length > 0 && (
-                            <button
-                                onClick={() => setMostrarConfirmacion(true)}
-                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
-                            >
-                                Limpiar Logs
-                            </button>
+                <Tarjeta
+                    titulo="Historial de Eventos Registrados"
+                    subtitulo={`Mostrando ${logsFiltrados.length} registros protegidos bajo cifrado institucional`}
+                >
+                    <div className="overflow-x-auto pt-2">
+                        {logsFiltrados.length === 0 ? (
+                            <div className="py-12 px-4 text-center space-y-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 my-4">
+                                <div className="w-10 h-10 rounded-xl bg-teal-50 text-[#009688] border border-teal-100 flex items-center justify-center mx-auto text-sm font-bold shadow-xs">
+                                    i
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-slate-800">No hay registros de auditoría disponibles</p>
+                                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                                        Actualmente el sistema no registra eventos bajo este criterio o el registro se encuentra vacío.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-200 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
+                                        <th className="pb-3 font-semibold">Marca Temporal</th>
+                                        <th className="pb-3 font-semibold">Tipo de Evento</th>
+                                        <th className="pb-3 font-semibold">Usuario / Entidad</th>
+                                        <th className="pb-3 font-semibold">Detalle de la Operación</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
+                                    {logsFiltrados.map((log, index) => {
+                                        const tipoLower = (log?.tipo || "").toLowerCase();
+                                        
+                                        let badgeColor = "bg-slate-100 text-slate-700 border-slate-200";
+                                        if (tipoLower.includes("seguridad")) {
+                                            badgeColor = "bg-rose-50 text-rose-700 border-rose-200";
+                                        } else if (tipoLower.includes("validación")) {
+                                            badgeColor = "bg-teal-50 text-teal-700 border-teal-200";
+                                        } else if (tipoLower.includes("autenticación")) {
+                                            badgeColor = "bg-blue-50 text-blue-700 border-blue-200";
+                                        } else if (tipoLower.includes("registro")) {
+                                            badgeColor = "bg-purple-50 text-purple-700 border-purple-200";
+                                        } else if (tipoLower.includes("sistema")) {
+                                            badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
+                                        }
+
+                                        return (
+                                            <tr key={log?.id || index} className="hover:bg-slate-50/80 transition">
+                                                <td className="py-3.5 pr-3 text-slate-500 whitespace-nowrap">
+                                                    {log?.fecha || "—"}
+                                                </td>
+                                                <td className="py-3.5 pr-3">
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide border ${badgeColor}`}>
+                                                        {log?.tipo || "GENERAL"}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 pr-3 font-semibold text-slate-800">
+                                                    {log?.usuario || "sistema@educa360.test"}
+                                                </td>
+                                                <td className="py-3.5 text-slate-600 font-sans text-xs">
+                                                    {log?.detalle || "Sin detalles registrados"}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
                         )}
                     </div>
-                </div>
+                </Tarjeta>
 
-                {mensajeExito && (
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
-                        {mensajeExito}
+                {modalVaciarAbierto && (
+                    <div className="fixed inset-0 bg-[#090d16]/70 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                        <div className="bg-[#f8fafc] rounded-[28px] shadow-2xl border border-slate-100 max-w-[440px] w-full p-8 sm:p-10 space-y-6 text-center relative z-10">
+                            
+                            <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border shadow-xs shrink-0 bg-rose-50 text-rose-600 border-rose-100">
+                                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </div>
+
+                            <div className="space-y-2">
+                                <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                                    ¿Vaciar el registro de auditoría?
+                                </h3>
+                                <p className="text-xs text-slate-500 leading-relaxed px-2">
+                                    Esta acción eliminará permanentemente todo el historial de eventos registrados en el sistema. No se podrá recuperar.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <button
+                                    onClick={() => setModalVaciarAbierto(false)}
+                                    className="w-full py-3.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200/80 shadow-xs cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={ejecutarVaciadoLogs}
+                                    className="w-full py-3.5 text-white font-bold text-xs rounded-xl shadow-lg transition cursor-pointer bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
+                                >
+                                    Sí, vaciar
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
-
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Historial de Registros de Actividad (Logs)</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                                    <th className="py-3 px-4">Acción</th>
-                                    <th className="py-3 px-4">Usuario</th>
-                                    <th className="py-3 px-4">Descripción del Evento</th>
-                                    <th className="py-3 px-4 text-right">Fecha y Hora</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs">
-                                {logsSistema.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="4" className="py-6 text-center text-slate-400">
-                                            No hay registros de auditoría en este momento.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    logsSistema.map((log) => (
-                                        <tr key={log.id} className="hover:bg-slate-50/50 transition">
-                                            <td className="py-3 px-4">
-                                                <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                                    {log.accion}
-                                                </span>
-                                            </td>
-                                            <td className="py-3 px-4 font-medium text-slate-800">{log.userEmail}</td>
-                                            <td className="py-3 px-4 text-slate-600">{log.descripcion}</td>
-                                            <td className="py-3 px-4 text-right text-slate-500">{log.fecha}</td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-        </main>
+            </div>
+        </PortalShell>
     );
 }

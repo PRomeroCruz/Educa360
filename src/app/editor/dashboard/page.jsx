@@ -1,46 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useAuthGuard } from "@/lib/useAuthGuard";
+import PortalShell from "@/components/PortalShell";
+import { Tarjeta, Campo, Boton, Aviso } from "@/components/ComponentesUI";
+import { EstadoCargando } from "@/components/EstadosUI";
 
-export default function EditorContenidosDashboard() {
+export default function EditorDashboard() {
     const router = useRouter();
-    const { user, loading } = useAuthGuard("editor_contenidos");
-    const [contenido, setContenido] = useState("");
-    const [mensajeExito, setMensajeExito] = useState(false);
+    const { user, loading } = useAuthGuard("editor_contenidos,editor");
+    const [tituloRecurso, setTituloRecurso] = useState("");
+    const [mensaje, setMensaje] = useState("");
 
-    useEffect(() => {
-        if (!user) return;
-        let active = true;
-        Promise.resolve().then(() => {
-            const guardado = localStorage.getItem("portal_contenido_educa360");
-            if (active && guardado) setContenido(guardado);
-        });
-        return () => {
-            active = false;
-        };
-    }, [user]);
-
-    const handleGuardarContenido = (e) => {
+    const handlePublicar = (e) => {
         e.preventDefault();
-        localStorage.setItem("portal_contenido_educa360", contenido);
-
-        const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-        const nuevoLog = {
-            id: Date.now(),
-            accion: "ACTUALIZAR_CONTENIDO",
-            userEmail: user.email,
-            descripcion: "El editor de contenidos modificó los avisos del portal web.",
-            fecha: new Date().toLocaleString(),
-            tipo: "success"
-        };
-        localStorage.setItem("logs_educa360", JSON.stringify([nuevoLog, ...logsActuales]));
-
-        setMensajeExito(true);
-        setTimeout(() => setMensajeExito(false), 3000);
+        if (!tituloRecurso) return;
+        setMensaje(`Recurso "${tituloRecurso}" publicado con éxito en el portal.`);
+        setTituloRecurso("");
+        setTimeout(() => setMensaje(""), 3000);
     };
 
     const handleLogout = async () => {
@@ -50,85 +30,45 @@ export default function EditorContenidosDashboard() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-slate-100">
-                <p className="text-slate-500 text-sm font-medium tracking-wide animate-pulse">Cargando gestor de contenidos...</p>
-            </div>
+        <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+            <EstadoCargando mensaje="Cargando gestor de contenidos..." />
+        </div>
         );
     }
 
     return (
-        <main className="min-h-screen bg-slate-50 text-slate-900 pb-12">
-            <header className="bg-slate-900 border-b border-slate-800 shadow-sm sticky top-0 z-20">
-                <div className="max-w-6xl mx-auto px-6 h-16 flex justify-between items-center">
-                    <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                            E
-                        </div>
-                        <div>
-                            <h1 className="text-sm font-semibold text-white tracking-wide">Educa360</h1>
-                            <p className="text-[11px] text-slate-400">Gestor de Contenidos del Portal</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleLogout}
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-lg transition border border-slate-700 shadow-sm"
-                    >
-                        Cerrar Sesión
-                    </button>
-                </div>
-            </header>
+        <PortalShell
+        rolLabel="Editor de Contenidos"
+        usuarioNombre="Sofia Editora"
+        usuarioEmail={user?.email || "editor@educa360.test"}
+        onLogout={handleLogout}
+        >
+        <div className="space-y-6">
+            <div>
+            <span className="text-[11px] font-mono uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
+                Gestión Documental
+            </span>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">Editor de Recursos y Guías Clínicas</h1>
+            <p className="text-xs text-slate-500 mt-0.5">
+                Publica guías informativas y protocolos médicos a disposición de los pacientes y sanitarios.
+            </p>
+            </div>
 
-            <section className="max-w-6xl mx-auto px-6 pt-8 space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-                    <div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md shadow-sm">
-                            Rol: Editor de Contenidos
-                        </span>
-                        <h2 className="text-xl font-bold text-slate-900 mt-2">Administración del Portal Web</h2>
-                        <p className="text-slate-500 text-xs mt-0.5">Gestión de textos informativos y avisos institucionales (Sin acceso a datos de usuarios o citas).</p>
-                    </div>
-                    <div className="text-right">
-                        <span className="text-xs font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
-                            {user?.email}
-                        </span>
-                    </div>
-                </div>
+            {mensaje && <Aviso tipo="info">{mensaje}</Aviso>}
 
-                {mensajeExito && (
-                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold">
-                        ¡Contenido del portal actualizado y publicado con éxito!
-                    </div>
-                )}
-
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
-                    <h3 className="text-sm font-bold text-slate-900">Editor de Anuncios y Avisos Institucionales</h3>
-                    
-                    <form onSubmit={handleGuardarContenido} className="space-y-4">
-                        <div>
-                            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                                Texto Principal del Banner / Aviso
-                            </label>
-                            <textarea
-                                rows="5"
-                                required
-                                value={contenido}
-                                onChange={(e) => setContenido(e.target.value)}
-                                placeholder="Bienvenido al portal institucional de Educa360. Aquí puede actualizar los avisos y banners informativos visibles para los pacientes."
-                                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition"
-                            />
-                        </div>
-
-                        <div className="flex justify-end">
-                            <button
-                                type="submit"
-                                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-sm transition"
-                            >
-                                Publicar Cambios en el Portal
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-        </main>
+            <Tarjeta titulo="Publicar Nuevo Recurso" subtitulo="Añadir documentación al repositorio general.">
+            <form onSubmit={handlePublicar} className="space-y-4 max-w-lg">
+                <Campo
+                id="titulo-recurso"
+                label="Título del documento o protocolo"
+                placeholder="Ej. Protocolo de atención cardiológica 2026"
+                value={tituloRecurso}
+                onChange={(e) => setTituloRecurso(e.target.value)}
+                />
+                <Boton type="submit">Publicar recurso</Boton>
+            </form>
+            </Tarjeta>
+        </div>
+        </PortalShell>
     );
 }

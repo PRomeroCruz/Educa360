@@ -2,10 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseConfig";
-import { apiFetch } from "@/lib/apiCliente";
+import { doc, setDoc } from "firebase/firestore";
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -13,190 +12,168 @@ export default function RegisterPage() {
     const [email, setEmail] = useState("");
     const [telefono, setTelefono] = useState("");
     const [password, setPassword] = useState("");
+    const [rol, setRol] = useState("paciente");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const handleRegister = async (e) => {
         e.preventDefault();
         setError("");
-
-        if (password.length < 6) {
-            setError("La contraseña debe tener al menos 6 caracteres.");
-            return;
-        }
-
-        const telefonoLimpio = telefono.replace(/\s+/g, '');
-        const telefonoRegex = /^\+\d{1,3}\d{9}$/;
-        
-        if (!telefonoRegex.test(telefonoLimpio)) {
-            setError("El teléfono debe incluir el prefijo internacional (ej. +34) y exactamente 9 dígitos.");
-            return;
-        }
-
         setLoading(true);
 
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
-            await updateProfile(user, { displayName: nombre });
+        await sendEmailVerification(user);
 
-            const emailLower = email.toLowerCase();
-            let roleDeterminado = "paciente";
+        let rolAsignado = "paciente";
+        if (email.includes("admin")) rolAsignado = "admin";
+        else if (email.includes("medico") || email.includes("profesional")) rolAsignado = "profesional_sanitario";
+        else if (email.includes("editor")) rolAsignado = "editor";
+        else if (email.includes("alumno")) rolAsignado = "alumno";
+        else if (rol) rolAsignado = rol;
 
-            if (emailLower.includes("adminsistema")) {
-                roleDeterminado = "admin_sistema";
-            } else if (emailLower.includes("medico")) {
-                roleDeterminado = "profesional_sanitario";
-            } else if (emailLower.includes("administracion")) {
-                roleDeterminado = "admin";
-            } else if (emailLower.includes("alumno")) {
-                roleDeterminado = "alumno_practicas";
-            } else if (emailLower.includes("editor")) {
-                roleDeterminado = "editor_contenidos";
-            }
-
+        try {
             await setDoc(doc(db, "usuarios", user.uid), {
-                uid: user.uid,
-                nombre,
-                email,
-                telefono: telefonoLimpio,
-                role: roleDeterminado,
-                createdAt: new Date().toISOString()
+            uid: user.uid,
+            nombre,
+            email,
+            telefono,
+            role: rolAsignado,
+            createdAt: new Date().toISOString(),
             });
+        } catch (firestoreErr) {
+            console.warn("Firestore no disponible, usando almacenamiento local:", firestoreErr);
+        }
 
-            localStorage.setItem(`rol_${email.trim().toLowerCase()}`, roleDeterminado);
-            localStorage.removeItem(`totp_configurado_${email.trim().toLowerCase()}`);
+        localStorage.setItem(`rol_${user.email}`, rolAsignado);
+        
+        const usuariosReg = JSON.parse(localStorage.getItem("usuarios_educa360") || "[]");
+        usuariosReg.push({ uid: user.uid, nombre, email, telefono, rol: rolAsignado });
+        localStorage.setItem("usuarios_educa360", JSON.stringify(usuariosReg));
 
-            try {
-                await apiFetch("/api/set-claims", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ 
-                        uid: user.uid, 
-                        email: user.email, 
-                        telefono: telefonoLimpio 
-                    }),
-                });
-            } catch {
-                console.warn("Aviso: No se pudo actualizar Auth en el servidor local, pero los datos están en Firestore.");
-            }
-
-            router.push("/login");
+        router.push(`/register/verify-notice?email=${encodeURIComponent(user.email)}&role=${rolAsignado}`);
         } catch (err) {
-            console.error("Error detallado en el registro:", err);
-            
-            let mensajeAmigable = "No se pudo completar el registro.";
-            if (err.code === "auth/email-already-in-use") {
-                mensajeAmigable = "Este correo ya está registrado en el sistema.";
-            } else if (err.code === "auth/invalid-email") {
-                mensajeAmigable = "El formato del correo electrónico no es válido.";
-            }
-
-            setError(mensajeAmigable);
-            setLoading(false);
+        console.error("Error en registro:", err);
+        setError(err.message || "Error al registrar el usuario en el sistema.");
+        setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-slate-800">
-                <div className="text-center space-y-2">
-                    <div className="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center text-white font-bold text-xl shadow-md">
-                        E
-                    </div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                        Educa360
-                    </h1>
-                    <p className="text-xs text-slate-500 font-medium">
-                        Plataforma Segura de Gestión Institucional y Sanitaria
-                    </p>
-                </div>
+        <main className="min-h-screen bg-[#090d16] flex flex-col items-center justify-center p-6 relative overflow-hidden antialiased">
+        <div className="absolute -top-24 -left-24 w-80 h-80 bg-teal-600/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-12 -left-12 w-56 h-56 bg-blue-600/10 rounded-full blur-2xl pointer-events-none" />
 
-                {error && (
-                    <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg text-center font-medium">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleRegister} className="space-y-4">
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Nombre Completo
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="Juan Pérez"
-                            value={nombre}
-                            onChange={(e) => setNombre(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Correo Electrónico
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            placeholder="usuario@dominio.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Teléfono
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="+34 600 000 000"
-                            value={telefono}
-                            onChange={(e) => setTelefono(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-[11px] font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-                            Contraseña
-                        </label>
-                        <input
-                            type="password"
-                            required
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition shadow-sm"
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-lg shadow-md transition disabled:opacity-50"
-                    >
-                        {loading ? "Creando cuenta..." : "Crear Cuenta"}
-                    </button>
-                </form>
-
-                <div className="text-center pt-2 border-t border-slate-100 space-y-2">
-                    <p className="text-xs text-slate-500">
-                        ¿Ya tienes una cuenta?{" "}
-                        <button onClick={() => router.push("/login")} className="text-blue-600 font-bold hover:underline">
-                            Inicia sesión aquí
-                        </button>
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                        Control de acceso con segundo factor obligatorio para perfiles sanitarios.
-                    </p>
-                </div>
+        <div className="flex flex-col items-center text-center mb-8 relative z-10">
+            <div className="w-12 h-12 rounded-2xl bg-[#009688] text-white font-bold text-lg flex items-center justify-center shadow-lg shadow-teal-900/40 mb-4">
+            E
             </div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+            Educa360 Salud
+            </h1>
+            <p className="text-xs font-mono text-slate-400 mt-1.5 tracking-wide">
+            Plataforma Global de Gestión Clínica y Citas
+            </p>
+        </div>
+
+        <div className="bg-[#f8fafc] rounded-[28px] shadow-2xl max-w-[440px] w-full p-8 sm:p-10 relative z-10">
+            <div className="text-center space-y-1.5 mb-7">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Crear Cuenta Profesional
+            </h2>
+            <p className="text-xs text-slate-500">
+                Complete los datos para habilitar su acceso al sistema
+            </p>
+            </div>
+
+            {error && (
+            <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium text-center">
+                {error}
+            </div>
+            )}
+
+            <form onSubmit={handleRegister} className="space-y-4">
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                NOMBRE COMPLETO
+                </label>
+                <input
+                type="text"
+                required
+                placeholder="Dra. Laura Martínez"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                CORREO ELECTRÓNICO
+                </label>
+                <input
+                type="email"
+                required
+                placeholder="usuario@educa360.test"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                TELÉFONO DE CONTACTO
+                </label>
+                <input
+                type="tel"
+                placeholder="+34 600 000 000"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                CONTRASEÑA
+                </label>
+                <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200/80 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#009688] focus:ring-2 focus:ring-[#009688]/10 focus:outline-hidden transition"
+                />
+            </div>
+
+            <div className="pt-2">
+                <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 bg-[#009688] hover:bg-[#00796b] text-white font-bold text-xs rounded-xl shadow-lg shadow-teal-700/25 transition cursor-pointer disabled:opacity-50"
+                >
+                {loading ? "Procesando registro..." : "Completar registro seguro"}
+                </button>
+            </div>
+            </form>
+
+            <div className="mt-7 pt-5 border-t border-slate-200/70 text-center">
+            <p className="text-xs text-slate-500">
+                ¿Ya dispone de una cuenta?{" "}
+                <a href="/login" className="font-bold text-[#009688] hover:underline">
+                Iniciar sesión aquí
+                </a>
+            </p>
+            </div>
+        </div>
+
+        <p className="text-[10px] font-mono text-slate-500 mt-8 text-center relative z-10">
+            Entorno protegido con cifrado TLS 1.3 · Control de acceso de doble factor
+        </p>
         </main>
     );
 }

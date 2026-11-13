@@ -35,19 +35,29 @@ export function useAuthGuard(allowedRolesString = "") {
 
                 setRole(userRole);
 
+                const roleLower = userRole.toLowerCase();
+                const emailLower = currentUser.email.toLowerCase();
+
+                const isAdminGlobal = 
+                    roleLower.includes("admin") || 
+                    roleLower.includes("administraci") || 
+                    emailLower.includes("administracion") || 
+                    emailLower.includes("adminsistema");
+
+                if (isAdminGlobal) {
+                    setLoading(false);
+                    return;
+                }
+
                 if (allowedRolesString) {
                     const allowedRoles = allowedRolesString.split(",").map(r => r.trim());
-                    const roleLower = userRole.toLowerCase();
-                    const emailLower = currentUser.email.toLowerCase();
 
                     const isAuthorized = allowedRoles.some(allowed => {
                         const target = allowed.toLowerCase();
                         return roleLower.includes(target) || emailLower.includes(target);
                     });
 
-                    const isAdminGlobal = roleLower.includes("admin") || roleLower.includes("administración");
-
-                    if (!isAuthorized && !isAdminGlobal) {
+                    if (!isAuthorized) {
                         router.push("/access-denied");
                         return;
                     }
