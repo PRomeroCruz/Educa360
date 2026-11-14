@@ -14,7 +14,7 @@
   "hosting": [
     {
       "target": "educa360-dev",
-      "public": "out",
+      "public": "public",
       "ignore": [
         "firebase.json",
         "**/.*",
