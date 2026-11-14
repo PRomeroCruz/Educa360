@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ignora los errores de ESLint durante el build en el pipeline
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-} as any;
+  output: 'export', // <-- Añade esta línea para que se genere la carpeta 'out' al compilar
+};
 
 export default nextConfig;
