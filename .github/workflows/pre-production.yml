@@ -75,4 +75,3 @@ jobs:
           NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
         run: |
           npx firebase-tools deploy --only hosting:educa360-dev --token "$FIREBASE_CLI_TOKEN"
-          
