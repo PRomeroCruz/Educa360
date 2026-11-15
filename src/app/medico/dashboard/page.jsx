@@ -2,11 +2,11 @@
 
 import { useState, useEffect, Fragment } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseConfig";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 import PortalShell from "@/components/PortalShell";
-import { Tarjeta } from "@/components/ComponentesUI";
 import { EstadoCargando } from "@/components/EstadosUI";
 import { registrarLogSistema } from "@/app/admin/dashboard/page";
 
@@ -181,6 +181,18 @@ export default function MedicoDashboardPage() {
                         <p className="text-xs text-slate-500">
                             Gestión de agenda activa, historiales médicos y emisión de diagnósticos certificados.
                         </p>
+                    </div>
+
+                    <div>
+                        <Link
+                            href="/medico/profile"
+                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-sm shadow-teal-600/20 cursor-pointer"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Mi Ficha Profesional
+                        </Link>
                     </div>
                 </div>
 

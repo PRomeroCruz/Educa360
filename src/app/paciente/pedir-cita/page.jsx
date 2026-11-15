@@ -15,7 +15,7 @@ const HORAS_BASE = [
     "09:00", "09:30", "10:00", "10:30", "11:00",
     "11:30", "12:00", "12:30", "16:00", "16:30", 
     "17:00", "17:30", "18:00", "18:30", "19:00", 
-    "19:30", "20:00", "20:30", "21:00"
+    "19:30", "20:00", "20:30"
 ];
 
 export default function PedirCitaPage() {
@@ -36,7 +36,6 @@ export default function PedirCitaPage() {
     const [mensajeAlerta, setMensajeAlerta] = useState({ texto: "", tipo: "info" });
     const [mensajeExito, setMensajeExito] = useState("");
 
-    // Inicializar la fecha mínima con el día actual
     useEffect(() => {
         const hoy = new Date();
         const yyyy = hoy.getFullYear();
@@ -45,7 +44,6 @@ export default function PedirCitaPage() {
         setFechaMinima(`${yyyy}-${mm}-${dd}`);
     }, []);
 
-    // Cargar los médicos reales desde la colección "profesionales" de Firestore
     useEffect(() => {
         const obtenerMedicosFirestore = async () => {
             try {
@@ -74,17 +72,14 @@ export default function PedirCitaPage() {
         obtenerMedicosFirestore();
     }, []);
 
-    // Extraer especialidades únicas de los profesionales reales de Firestore
     const especialidadesDisponibles = Array.from(
         new Set(medicosDB.map(m => m.especialidad).filter(Boolean))
     );
 
-    // Filtrar médicos según la especialidad seleccionada
     const medicosFiltrados = medicosDB.filter(m => 
         !especialidad || (m.especialidad || "").toLowerCase() === especialidad.toLowerCase()
     );
 
-    // Validación de fecha (bloqueo de fines de semana) y filtrado de horas ocupadas / pasadas
     useEffect(() => {
         if (!fecha || !medico) {
             setHorasDisponibles([]);
@@ -95,7 +90,6 @@ export default function PedirCitaPage() {
         const fechaObj = new Date(anio, mes - 1, dia);
         const diaSemana = fechaObj.getDay();
 
-        // Bloquear fines de semana (Sábado = 6, Domingo = 0)
         if (diaSemana === 0 || diaSemana === 6) {
             setMensajeAlerta({
                 texto: "Atención institucional: Los fines de semana (sábados y domingos) no hay servicio de consulta ambulatoria disponible. Por favor, seleccione un día laborable.",
@@ -108,7 +102,6 @@ export default function PedirCitaPage() {
             setMensajeAlerta({ texto: "", tipo: "info" });
         }
 
-        // Obtener citas ya registradas para bloquear horas ocupadas, aceptadas, confirmadas o completadas para este médico en esta fecha
         let horasOcupadas = new Set();
         try {
             const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
@@ -117,11 +110,9 @@ export default function PedirCitaPage() {
                 const mismoMedico = (c.medico || "").toLowerCase() === medico.toLowerCase();
                 const estadoCita = (c.estado || "").toLowerCase();
 
-                // Si la cita está aceptada, confirmada, pendiente o completada, bloqueamos esa hora exacta
                 const estaOcupada = estadoCita === "aceptada" || estadoCita === "confirmada" || estadoCita === "pendiente" || estadoCita === "completada";
 
                 if (mismaFecha && mismoMedico && estaOcupada) {
-                    // Limpiamos la hora por si viene con formato "12:00 h" o "12:00"
                     const horaLimpia = (c.hora || "").replace(" h", "").trim();
                     if (horaLimpia) horasOcupadas.add(horaLimpia);
                 }
@@ -137,10 +128,8 @@ export default function PedirCitaPage() {
         const hoyStr = `${yyyy}-${mm}-${dd}`;
 
         const horasValidas = HORAS_BASE.filter((hStr) => {
-            // Descartar si ya está ocupada por otra cita del médico en esa fecha
             if (horasOcupadas.has(hStr)) return false;
 
-            // Si es el día de hoy, descartar horas pasadas
             if (fecha === hoyStr) {
                 const [h, m] = hStr.split(":").map(Number);
                 const horaActual = ahora.getHours();
@@ -242,7 +231,6 @@ export default function PedirCitaPage() {
                     </div>
                 )}
 
-                {/* Recuadro de Horarios Disponibles */}
                 <div className="p-4 rounded-2xl border bg-teal-50/70 border-teal-200 text-teal-900 text-xs space-y-2 shadow-xs">
                     <div className="flex items-center space-x-2 font-bold text-teal-800">
                         <span className="w-5 h-5 rounded-full bg-teal-200 text-teal-800 flex items-center justify-center text-[10px]">i</span>
@@ -251,7 +239,7 @@ export default function PedirCitaPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
                         <div className="bg-white/80 p-2.5 rounded-xl border border-teal-100">
                             <span className="font-bold block text-teal-700 uppercase tracking-wider text-[10px] mb-1">Turno de Mañana:</span>
-                            <span className="text-slate-600">09:00 h — 12:30 h</span>
+                            <span className="text-slate-600">09:00 h — 13:00 h</span>
                         </div>
                         <div className="bg-white/80 p-2.5 rounded-xl border border-teal-100">
                             <span className="font-bold block text-teal-700 uppercase tracking-wider text-[10px] mb-1">Turno de Tarde:</span>
@@ -266,7 +254,6 @@ export default function PedirCitaPage() {
                 >
                     <form onSubmit={handleSolicitarCita} className="space-y-5 pt-2">
                         
-                        {/* 1. SELECCIÓN DE ESPECIALIDAD */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">1. Especialidad Clínica</label>
                             <select
@@ -290,7 +277,6 @@ export default function PedirCitaPage() {
                             </select>
                         </div>
 
-                        {/* 2. SELECCIÓN DE MÉDICO */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">2. Facultativo Asignado</label>
                             <select
@@ -314,7 +300,6 @@ export default function PedirCitaPage() {
                             </select>
                         </div>
 
-                        {/* 3. SELECCIÓN DE FECHA */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">3. Fecha de la Consulta</label>
                             <input
@@ -328,7 +313,6 @@ export default function PedirCitaPage() {
                             />
                         </div>
 
-                        {/* 4. SELECCIÓN DE HORA */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">4. Hora Disponible</label>
                             {!fecha ? (
@@ -355,7 +339,6 @@ export default function PedirCitaPage() {
                             )}
                         </div>
 
-                        {/* MOTIVO DE LA CONSULTA */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">Motivo de la consulta (Opcional)</label>
                             <textarea
@@ -367,7 +350,6 @@ export default function PedirCitaPage() {
                             />
                         </div>
 
-                        {/* BOTÓN DE CONFIRMACIÓN */}
                         <div className="pt-2 flex justify-end">
                             <button
                                 type="submit"
