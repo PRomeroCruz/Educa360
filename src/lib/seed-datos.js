@@ -212,13 +212,65 @@ export async function seedProfesionalesMedicos(services) {
         const docId = prof.email.split("@")[0];
 
         await firestoreAdmin.collection("profesionales_publicos").doc(docId).set(prof.publico, { merge: true });
-
         await firestoreAdmin.collection("profesionales_internos").doc(docId).set(prof.interno, { merge: true });
 
         console.info(`[seed] Profesional sincronizado: ${prof.publico.nombre} (${prof.email})`);
     }
 
     console.info("[seed] Todos los perfiles profesionales (públicos e internos) han sido inyectados correctamente.");
+}
+
+export async function seedDisponibilidadProfesionales(services) {
+    const { firestoreAdmin } = services;
+
+    const disponibilidades = [
+        {
+            id: "disp-medico-centro",
+            profesionalId: "medico",
+            sedeId: IDS.sedeCentro,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
+                    ]
+                },
+                {
+                    dia: "Martes",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
+                    ]
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
+                    ]
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
+                    ]
+                },
+                {
+                    dia: "Viernes",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 }
+                    ]
+                }
+            ]
+        }
+    ];
+
+    for (const disp of disponibilidades) {
+        await firestoreAdmin.collection("disponibilidad_sedes").doc(disp.id).set(disp, { merge: true });
+    }
+    console.info("[seed] Plantillas de disponibilidad por profesional y sede cargadas correctamente.");
 }
 
 export async function seedTestData({ authAdmin, firestoreAdmin }) {
@@ -258,6 +310,7 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
     console.info(`[seed] ${servicios.length} servicios creados.`);
 
     await seedProfesionalesMedicos(services);
+    await seedDisponibilidadProfesionales(services);
 
     const profesionales = [
         {
