@@ -11,22 +11,16 @@ import { Tarjeta } from "@/components/ComponentesUI";
 import { EstadoCargando } from "@/components/EstadosUI";
 import { registrarLogSistema } from "@/app/admin/dashboard/page";
 
-const HORAS_BASE = [
-    "09:00", "09:30", "10:00", "10:30", "11:00",
-    "11:30", "12:00", "12:30", "16:00", "16:30", 
-    "17:00", "17:30", "18:00", "18:30", "19:00", 
-    "19:30", "20:00", "20:30"
-];
-
 export default function PedirCitaPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuthGuard("paciente");
 
-    const [medicosDB, setMedicosDB] = useState([]);
+    const [medicosDisponiblesDB, setMedicosDisponiblesDB] = useState([]);
+    const [mapaDisponibilidad, setMapaDisponibilidad] = useState({});
     const [cargandoMedicos, setCargandoMedicos] = useState(true);
 
     const [especialidad, setEspecialidad] = useState("");
-    const [medico, setMedico] = useState("");
+    const [medicoSeleccionado, setMedicoSeleccionado] = useState(null);
     const [fecha, setFecha] = useState("");
     const [hora, setHora] = useState("");
     const [motivo, setMotivo] = useState("");
@@ -45,54 +39,105 @@ export default function PedirCitaPage() {
     }, []);
 
     useEffect(() => {
-        const obtenerMedicosFirestore = async () => {
+        const obtenerMedicosEstrictosDePlantilla = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, "profesionales"));
-                const lista = [];
-                
-                querySnapshot.forEach((docSnap) => {
+                const [snapDisp, snapProfPub, snapProfInt] = await Promise.all([
+                    getDocs(collection(db, "disponibilidad_sedes")),
+                    getDocs(collection(db, "profesionales_publicos")),
+                    getDocs(collection(db, "profesionales"))
+                ]);
+
+                const dispMap = {};
+                const pubMap = {};
+
+                snapProfPub.forEach(docSnap => {
+                    pubMap[docSnap.id.toLowerCase().trim()] = docSnap.data();
+                });
+                snapProfInt.forEach(docSnap => {
                     const data = docSnap.data();
-                    lista.push({
-                        id: docSnap.id,
-                        email: data.email || "Sin correo",
-                        nombre: data.nombre || "Facultativo Médico",
-                        especialidad: data.especialidad || "Medicina General"
-                    });
+                    if (data.email) {
+                        const key = data.email.split("@")[0].toLowerCase().trim();
+                        if (!pubMap[key]) pubMap[key] = data;
+                    }
                 });
 
-                setMedicosDB(lista);
+                const medicosMap = new Map();
+
+                snapDisp.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (data.profesionalId) {
+                        const idProf = data.profesionalId.toLowerCase().trim();
+                        dispMap[idProf] = data.horarios || [];
+
+                        const perfil = pubMap[idProf] || pubMap[idProf.replace(/-/g, "")] || {};
+                        
+                        let nombre = perfil.nombre || perfil.public?.nombre;
+                        let especialidadMed = perfil.especialidad || perfil.public?.especialidad || "Medicina General";
+                        let email = perfil.email || `${idProf}@educa360.test`;
+
+                        if (idProf === "medico-1") {
+                            nombre = "Dra. Laura Martínez";
+                            especialidadMed = "Medicina General";
+                            email = "medico@educa360.test";
+                        } else if (idProf === "medico-2") {
+                            nombre = "Dr. Fernando José Martínez de la Torre y Gálvez";
+                            especialidadMed = "Cardiología";
+                            email = "medico2@educa360.test";
+                        } else if (idProf === "medico-3") {
+                            nombre = "Dra. Elena Ruiz-Sánchez";
+                            especialidadMed = "Dermatología";
+                            email = "medico3@educa360.test";
+                        }
+
+                        if (nombre && !nombre.startsWith("Facultativo (")) {
+                            const claveUnica = email.toLowerCase().trim();
+                            if (!medicosMap.has(claveUnica)) {
+                                medicosMap.set(claveUnica, {
+                                    id: idProf,
+                                    email: email,
+                                    nombre: nombre,
+                                    especialidad: especialidadMed,
+                                    matchKey: idProf
+                                });
+                            }
+                        }
+                    }
+                });
+
+                setMapaDisponibilidad(dispMap);
+                setMedicosDisponiblesDB(Array.from(medicosMap.values()));
             } catch (error) {
-                console.error("Error al conectar con Firestore para obtener profesionales:", error);
-                setMedicosDB([]);
+                console.error("Error al cargar disponibilidad estricta:", error);
+                setMedicosDisponiblesDB([]);
             } finally {
                 setCargandoMedicos(false);
             }
         };
 
-        obtenerMedicosFirestore();
+        obtenerMedicosEstrictosDePlantilla();
     }, []);
 
     const especialidadesDisponibles = Array.from(
-        new Set(medicosDB.map(m => m.especialidad).filter(Boolean))
-    );
+        new Set(medicosDisponiblesDB.map(m => m.especialidad).filter(Boolean))
+    ).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
-    const medicosFiltrados = medicosDB.filter(m => 
+    const medicosFiltrados = medicosDisponiblesDB.filter(m => 
         !especialidad || (m.especialidad || "").toLowerCase() === especialidad.toLowerCase()
     );
 
     useEffect(() => {
-        if (!fecha || !medico) {
+        if (!fecha || !medicoSeleccionado) {
             setHorasDisponibles([]);
             return;
         }
 
-        const [anio, mes, dia] = fecha.split("-").map(Number);
-        const fechaObj = new Date(anio, mes - 1, dia);
-        const diaSemana = fechaObj.getDay();
+        const [anio, mes, diaNum] = fecha.split("-").map(Number);
+        const fechaObj = new Date(anio, mes - 1, diaNum);
+        const diaSemanaIndex = fechaObj.getDay();
 
-        if (diaSemana === 0 || diaSemana === 6) {
+        if (diaSemanaIndex === 0 || diaSemanaIndex === 6) {
             setMensajeAlerta({
-                texto: "Atención institucional: Los fines de semana (sábados y domingos) no hay servicio de consulta ambulatoria disponible. Por favor, seleccione un día laborable.",
+                texto: "Atención institucional: Los fines de semana no hay servicio de consulta ambulatoria disponible.",
                 tipo: "error"
             });
             setFecha("");
@@ -102,15 +147,51 @@ export default function PedirCitaPage() {
             setMensajeAlerta({ texto: "", tipo: "info" });
         }
 
+        const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+        const nombreDiaSeleccionado = diasSemanaNombres[diaSemanaIndex];
+
+        let horariosDelMedico = mapaDisponibilidad[medicoSeleccionado.matchKey] || [];
+        
+        if (horariosDelMedico.length === 0) {
+            for (const [k, v] of Object.entries(mapaDisponibilidad)) {
+                if (medicoSeleccionado.matchKey.includes(k) || k.includes(medicoSeleccionado.matchKey)) {
+                    horariosDelMedico = v;
+                    break;
+                }
+            }
+        }
+
+        const horarioDiaActual = horariosDelMedico.find(h => h.dia.toLowerCase() === nombreDiaSeleccionado.toLowerCase());
+
+        let huecosCalculados = [];
+        if (horarioDiaActual && horarioDiaActual.franjas) {
+            horarioDiaActual.franjas.forEach(franja => {
+                const [hInicio, mInicio] = franja.inicio.split(":").map(Number);
+                const [hFin, mFin] = franja.fin.split(":").map(Number);
+                const duracion = Number(franja.duracionCitaMinutos) || 20;
+
+                let minutosActuales = hInicio * 60 + mInicio;
+                const minutosFin = hFin * 60 + mFin;
+
+                while (minutosActuales + duracion <= minutosFin) {
+                    const hStr = String(Math.floor(minutosActuales / 60)).padStart(2, "0");
+                    const mStr = String(minutosActuales % 60).padStart(2, "0");
+                    huecosCalculados.push(`${hStr}:${mStr}`);
+                    minutosActuales += duracion;
+                }
+            });
+        }
+
         let horasOcupadas = new Set();
         try {
             const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             citasGlobales.forEach((c) => {
                 const mismaFecha = c.fecha === fecha;
-                const mismoMedico = (c.medico || "").toLowerCase() === medico.toLowerCase();
+                const mismoMedico = (c.medico || "").toLowerCase() === medicoSeleccionado.email.toLowerCase() || 
+                                  (c.medico || "").toLowerCase() === medicoSeleccionado.nombre.toLowerCase() ||
+                                  (c.medico || "").toLowerCase() === medicoSeleccionado.id.toLowerCase();
                 const estadoCita = (c.estado || "").toLowerCase();
-
-                const estaOcupada = estadoCita === "aceptada" || estadoCita === "confirmada" || estadoCita === "pendiente" || estadoCita === "completada";
+                const estaOcupada = ["aceptada", "confirmada", "pendiente", "completada"].includes(estadoCita);
 
                 if (mismaFecha && mismoMedico && estaOcupada) {
                     const horaLimpia = (c.hora || "").replace(" h", "").trim();
@@ -118,7 +199,7 @@ export default function PedirCitaPage() {
                 }
             });
         } catch (err) {
-            console.error("Error al comprobar disponibilidad de horarios:", err);
+            console.error("Error al comprobar citas ocupadas:", err);
         }
 
         const ahora = new Date();
@@ -127,14 +208,12 @@ export default function PedirCitaPage() {
         const dd = String(ahora.getDate()).padStart(2, "0");
         const hoyStr = `${yyyy}-${mm}-${dd}`;
 
-        const horasValidas = HORAS_BASE.filter((hStr) => {
+        const horasValidas = huecosCalculados.filter((hStr) => {
             if (horasOcupadas.has(hStr)) return false;
 
             if (fecha === hoyStr) {
                 const [h, m] = hStr.split(":").map(Number);
-                const horaActual = ahora.getHours();
-                const minutoActual = ahora.getMinutes();
-                if (h < horaActual || (h === horaActual && m <= minutoActual)) {
+                if (h < ahora.getHours() || (h === ahora.getHours() && m <= ahora.getMinutes())) {
                     return false;
                 }
             }
@@ -143,11 +222,11 @@ export default function PedirCitaPage() {
 
         setHorasDisponibles(horasValidas);
         setHora(horasValidas.length > 0 ? horasValidas[0] : "");
-    }, [fecha, medico]);
+    }, [fecha, medicoSeleccionado, mapaDisponibilidad]);
 
     const handleSolicitarCita = (e) => {
         e.preventDefault();
-        if (!especialidad || !medico || !fecha || !hora) return;
+        if (!especialidad || !medicoSeleccionado || !fecha || !hora) return;
 
         const citasActuales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
         
@@ -155,7 +234,8 @@ export default function PedirCitaPage() {
             id: Date.now(),
             userEmail: user?.email || "paciente@educa360.test",
             especialidad,
-            medico,
+            medico: medicoSeleccionado.email,
+            medicoNombre: medicoSeleccionado.nombre,
             fecha,
             hora: `${hora} h`,
             motivo: motivo.trim() || "Sin observaciones",
@@ -167,7 +247,7 @@ export default function PedirCitaPage() {
         registrarLogSistema(
             "REGISTRO",
             user?.email || "paciente@educa360.test",
-            `Nueva solicitud de cita médica (${especialidad} con ${medico}) para el ${fecha} a las ${hora} h.`
+            `Nueva solicitud de cita médica (${especialidad} con ${medicoSeleccionado.nombre}) para el ${fecha} a las ${hora} h.`
         );
 
         setMensajeExito("Su solicitud de cita médica ha sido registrada correctamente en el sistema.");
@@ -183,7 +263,7 @@ export default function PedirCitaPage() {
     if (authLoading || cargandoMedicos) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
-                <EstadoCargando mensaje="Sincronizando cuadro médico institucional..." />
+                <EstadoCargando mensaje="Sincronizando cuadro médico con plantillas activas..." />
             </div>
         );
     }
@@ -205,7 +285,7 @@ export default function PedirCitaPage() {
                         Pedir Cita Médica
                     </h1>
                     <p className="text-xs text-slate-500 mt-0.5">
-                        Seleccione especialidad, facultativo y franja horaria disponible en tiempo real.
+                        Seleccione especialidad, facultativo y franja horaria disponible en tiempo real según plantilla.
                     </p>
                 </div>
 
@@ -234,23 +314,16 @@ export default function PedirCitaPage() {
                 <div className="p-4 rounded-2xl border bg-teal-50/70 border-teal-200 text-teal-900 text-xs space-y-2 shadow-xs">
                     <div className="flex items-center space-x-2 font-bold text-teal-800">
                         <span className="w-5 h-5 rounded-full bg-teal-200 text-teal-800 flex items-center justify-center text-[10px]">i</span>
-                        <span>Franjas Horarias Disponibles del Servicio Ambulatorio</span>
+                        <span>Cuadro Clínico y Disponibilidad Horaria (Turnos de Mañana y Tarde)</span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
-                        <div className="bg-white/80 p-2.5 rounded-xl border border-teal-100">
-                            <span className="font-bold block text-teal-700 uppercase tracking-wider text-[10px] mb-1">Turno de Mañana:</span>
-                            <span className="text-slate-600">09:00 h — 13:00 h</span>
-                        </div>
-                        <div className="bg-white/80 p-2.5 rounded-xl border border-teal-100">
-                            <span className="font-bold block text-teal-700 uppercase tracking-wider text-[10px] mb-1">Turno de Tarde:</span>
-                            <span className="text-slate-600">16:00 h — 21:00 h</span>
-                        </div>
-                    </div>
+                    <p className="text-[11px] text-slate-600">
+                        El sistema muestra exclusivamente a los profesionales con plantillas activas y calcula de forma automática los huecos disponibles correspondientes tanto a las franjas de mañana como a las de tarde configuradas en la sede.
+                    </p>
                 </div>
 
                 <Tarjeta
                     titulo="Formulario de Reserva de Consulta"
-                    subtitulo="Las horas ocupadas o ya completadas por el facultativo se bloquean automáticamente."
+                    subtitulo="Restringido exclusivamente a profesionales con disponibilidad activa."
                 >
                     <form onSubmit={handleSolicitarCita} className="space-y-5 pt-2">
                         
@@ -260,7 +333,7 @@ export default function PedirCitaPage() {
                                 value={especialidad}
                                 onChange={(e) => {
                                     setEspecialidad(e.target.value);
-                                    setMedico("");
+                                    setMedicoSeleccionado(null);
                                     setFecha("");
                                     setHora("");
                                 }}
@@ -268,7 +341,7 @@ export default function PedirCitaPage() {
                             >
                                 <option value="">-- Seleccione una especialidad --</option>
                                 {especialidadesDisponibles.length === 0 ? (
-                                    <option value="" disabled>No hay especialidades registradas en el sistema</option>
+                                    <option value="" disabled>No hay especialidades con plantilla activa</option>
                                 ) : (
                                     especialidadesDisponibles.map((esp) => (
                                         <option key={esp} value={esp}>{esp}</option>
@@ -280,10 +353,11 @@ export default function PedirCitaPage() {
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-700">2. Facultativo Asignado</label>
                             <select
-                                value={medico}
+                                value={medicoSeleccionado ? medicoSeleccionado.email : ""}
                                 disabled={!especialidad}
                                 onChange={(e) => {
-                                    setMedico(e.target.value);
+                                    const encontrado = medicosFiltrados.find(m => m.email === e.target.value);
+                                    setMedicoSeleccionado(encontrado || null);
                                     setFecha("");
                                     setHora("");
                                 }}
@@ -292,8 +366,8 @@ export default function PedirCitaPage() {
                                 <option value="">
                                     {!especialidad ? "Primero seleccione una especialidad..." : "-- Seleccione un facultativo --"}
                                 </option>
-                                {medicosFiltrados.map((m) => (
-                                    <option key={m.id || m.email} value={m.email}>
+                                {medicosFiltrados.map((m, index) => (
+                                    <option key={`${m.email}-${index}`} value={m.email}>
                                         {m.nombre}
                                     </option>
                                 ))}
@@ -305,7 +379,7 @@ export default function PedirCitaPage() {
                             <input
                                 type="date"
                                 min={fechaMinima}
-                                disabled={!medico}
+                                disabled={!medicoSeleccionado}
                                 value={fecha}
                                 onChange={(e) => setFecha(e.target.value)}
                                 required
@@ -314,7 +388,7 @@ export default function PedirCitaPage() {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-700">4. Hora Disponible</label>
+                            <label className="text-xs font-bold text-slate-700">4. Hora Disponible (Turnos de Mañana y Tarde)</label>
                             {!fecha ? (
                                 <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-400 text-xs">
                                     Primero seleccione una fecha válida...
@@ -353,7 +427,7 @@ export default function PedirCitaPage() {
                         <div className="pt-2 flex justify-end">
                             <button
                                 type="submit"
-                                disabled={!especialidad || !medico || !fecha || horasDisponibles.length === 0}
+                                disabled={!especialidad || !medicoSeleccionado || !fecha || horasDisponibles.length === 0}
                                 className="w-full py-3 bg-[#009688] hover:bg-[#00796b] disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-700/20 transition cursor-pointer disabled:cursor-not-allowed"
                             >
                                 Confirmar Solicitud de Cita
