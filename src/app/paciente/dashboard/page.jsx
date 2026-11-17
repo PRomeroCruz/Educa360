@@ -221,19 +221,27 @@ export default function PacienteDashboard() {
         </Tarjeta>
 
         {citaACancelar && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[32px] border border-slate-100 p-8 max-w-md w-full shadow-2xl space-y-6 text-center animate-in fade-in zoom-in duration-200">
+          <div className="fixed inset-0 bg-[#090d16]/75 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-[28px] shadow-2xl border border-rose-100 max-w-[440px] w-full p-8 sm:p-10 space-y-6 text-center relative z-10">
               
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shadow-xs">
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border shadow-sm shrink-0 bg-rose-50 text-rose-600 border-rose-200">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
 
               <div className="space-y-2">
-                <h3 className="text-lg font-bold text-slate-900">¿Desea cancelar esta cita médica?</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Está a punto de modificar la cita del paciente <span className="font-semibold text-slate-800">{citaACancelar.userEmail}</span> programada para el <span className="font-semibold text-slate-800">{citaACancelar.fecha}</span> a las <span className="font-semibold text-slate-800">{citaACancelar.hora}</span>.
+                <span className="inline-block text-[10px] font-mono uppercase tracking-wider text-rose-700 bg-rose-50 border border-rose-200 px-3 py-0.5 rounded-md font-bold">
+                  Acción Crítica · Registro Clínico
+                </span>
+                <h3 className="text-lg font-bold text-slate-900 tracking-tight pt-1">
+                  ¿Desea cancelar esta cita médica?
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed px-2">
+                  Está a punto de modificar la cita del paciente <strong className="text-slate-800">{citaACancelar.userEmail}</strong> programada para el <strong className="text-slate-800">{citaACancelar.fecha}</strong> a las <strong className="text-slate-800">{citaACancelar.hora}</strong>.
+                </p>
+                <p className="text-[11px] text-rose-600/90 font-medium pt-1">
+                  Esta acción quedará registrada en la auditoría del sistema.
                 </p>
               </div>
 
@@ -241,14 +249,14 @@ export default function PacienteDashboard() {
                 <button
                   type="button"
                   onClick={() => setCitaACancelar(null)}
-                  className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-2xl border border-slate-200 shadow-xs transition cursor-pointer"
+                  className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200/80 shadow-xs cursor-pointer"
                 >
                   Volver
                 </button>
                 <button
                   type="button"
                   onClick={confirmarCancelacion}
-                  className="w-full py-3 px-4 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-2xl shadow-lg shadow-rose-600/25 transition cursor-pointer"
+                  className="w-full py-3.5 text-white font-bold text-xs rounded-xl shadow-lg transition cursor-pointer bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
                 >
                   Sí, cancelar
                 </button>
