@@ -252,7 +252,10 @@ export default function PedirCitaPage() {
 
         setMensajeExito("Su solicitud de cita médica ha sido registrada correctamente en el sistema.");
         setMotivo("");
-        setTimeout(() => setMensajeExito(""), 4000);
+
+        setTimeout(() => {
+        router.push("/paciente/dashboard");
+        }, 3000);
     };
 
     const handleCerrarSesion = async () => {
