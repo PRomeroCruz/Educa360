@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebaseConfig";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, query, where, getDoc, doc } from "firebase/firestore";
 import { useAuthGuard } from "@/lib/useAuthGuard";
 import PortalShell from "@/components/PortalShell";
 import { Tarjeta } from "@/components/ComponentesUI";
@@ -17,7 +17,9 @@ export default function PedirCitaPage() {
 
     const [medicosDisponiblesDB, setMedicosDisponiblesDB] = useState([]);
     const [mapaDisponibilidad, setMapaDisponibilidad] = useState({});
+    const [bloqueosAgenda, setBloqueosAgenda] = useState([]);
     const [cargandoMedicos, setCargandoMedicos] = useState(true);
+    const [metricasLectura, setMetricasLectura] = useState({ cargaInicial: 0, consultaHuecos: 0 });
 
     const [especialidad, setEspecialidad] = useState("");
     const [medicoSeleccionado, setMedicoSeleccionado] = useState(null);
@@ -39,13 +41,20 @@ export default function PedirCitaPage() {
     }, []);
 
     useEffect(() => {
-        const obtenerMedicosEstrictosDePlantilla = async () => {
+        const obtenerMedicosYBloqueos = async () => {
             try {
-                const [snapDisp, snapProfPub, snapProfInt] = await Promise.all([
+                const [snapDisp, snapProfPub, snapProfInt, snapBloq] = await Promise.all([
                     getDocs(collection(db, "disponibilidad_sedes")),
                     getDocs(collection(db, "profesionales_publicos")),
-                    getDocs(collection(db, "profesionales"))
+                    getDocs(collection(db, "profesionales")),
+                    getDocs(collection(db, "bloqueos_agenda"))
                 ]);
+
+                const totalLecturasIniciales = snapDisp.size + snapProfPub.size + snapProfInt.size + snapBloq.size;
+                setMetricasLectura(prev => ({ ...prev, cargaInicial: totalLecturasIniciales }));
+
+                const listaBloqueos = snapBloq.docs.map(d => ({ id: d.id, ...d.data() }));
+                setBloqueosAgenda(listaBloqueos);
 
                 const dispMap = {};
                 const pubMap = {};
@@ -107,14 +116,14 @@ export default function PedirCitaPage() {
                 setMapaDisponibilidad(dispMap);
                 setMedicosDisponiblesDB(Array.from(medicosMap.values()));
             } catch (error) {
-                console.error("Error al cargar disponibilidad estricta:", error);
+                console.error("Error al cargar disponibilidad y bloqueos:", error);
                 setMedicosDisponiblesDB([]);
             } finally {
                 setCargandoMedicos(false);
             }
         };
 
-        obtenerMedicosEstrictosDePlantilla();
+        obtenerMedicosYBloqueos();
     }, []);
 
     const especialidadesDisponibles = Array.from(
@@ -125,108 +134,203 @@ export default function PedirCitaPage() {
         !especialidad || (m.especialidad || "").toLowerCase() === especialidad.toLowerCase()
     );
 
+    const horaAMinutos = (horaStr) => {
+        const [h, m] = horaStr.split(":").map(Number);
+        return h * 60 + m;
+    };
+
     useEffect(() => {
-        if (!fecha || !medicoSeleccionado) {
-            setHorasDisponibles([]);
-            return;
-        }
+        const calcularHuecosDelDia = async () => {
+            if (!fecha || !medicoSeleccionado) {
+                setHorasDisponibles([]);
+                return;
+            }
 
-        const [anio, mes, diaNum] = fecha.split("-").map(Number);
-        const fechaObj = new Date(anio, mes - 1, diaNum);
-        const diaSemanaIndex = fechaObj.getDay();
+            const [anio, mes, diaNum] = fecha.split("-").map(Number);
+            const fechaObj = new Date(anio, mes - 1, diaNum);
+            const diaSemanaIndex = fechaObj.getDay();
 
-        if (diaSemanaIndex === 0 || diaSemanaIndex === 6) {
-            setMensajeAlerta({
-                texto: "Atención institucional: Los fines de semana no hay servicio de consulta ambulatoria disponible.",
-                tipo: "error"
+            if (diaSemanaIndex === 0 || diaSemanaIndex === 6) {
+                setMensajeAlerta({
+                    texto: "Atención institucional: Los fines de semana no hay servicio de consulta ambulatoria disponible.",
+                    tipo: "error"
+                });
+                setFecha("");
+                setHorasDisponibles([]);
+                return;
+            }
+
+            const bloqueosAplicables = bloqueosAgenda.filter(b => {
+                const enRangoFecha = fecha >= b.fechaInicio && fecha <= (b.fechaFin || b.fechaInicio);
+                if (!enRangoFecha) return false;
+                return b.alcance === "global" || (b.profesionalId || "").toLowerCase() === medicoSeleccionado.id.toLowerCase();
             });
-            setFecha("");
-            setHorasDisponibles([]);
-            return;
-        } else {
-            setMensajeAlerta({ texto: "", tipo: "info" });
-        }
 
-        const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-        const nombreDiaSeleccionado = diasSemanaNombres[diaSemanaIndex];
+            const bloqueoDiaCompleto = bloqueosAplicables.find(b => b.tipoBloqueo === "completo" || !b.tipoBloqueo);
+            if (bloqueoDiaCompleto) {
+                setMensajeAlerta({
+                    texto: `Agenda cerrada para esta fecha (${bloqueoDiaCompleto.motivo}). Por favor, seleccione otro día.`,
+                    tipo: "error"
+                });
+                setHorasDisponibles([]);
+                setHora("");
+                return;
+            }
 
-        let horariosDelMedico = mapaDisponibilidad[medicoSeleccionado.matchKey] || [];
-        
-        if (horariosDelMedico.length === 0) {
-            for (const [k, v] of Object.entries(mapaDisponibilidad)) {
-                if (medicoSeleccionado.matchKey.includes(k) || k.includes(medicoSeleccionado.matchKey)) {
-                    horariosDelMedico = v;
-                    break;
+            const bloqueosParciales = bloqueosAplicables.filter(b => b.tipoBloqueo === "parcial");
+            if (bloqueosParciales.length > 0) {
+                setMensajeAlerta({
+                    texto: `Aviso: Existen bloqueos horarios parciales aplicados en esta jornada (${bloqueosParciales.map(bp => `${bp.horaInicio}-${bp.horaFin}: ${bp.motivo}`).join(", ")}).`,
+                    tipo: "info"
+                });
+            } else {
+                setMensajeAlerta({ texto: "", tipo: "info" });
+            }
+
+            const diasSemanaNombres = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+            const nombreDiaSeleccionado = diasSemanaNombres[diaSemanaIndex];
+
+            let horariosDelMedico = mapaDisponibilidad[medicoSeleccionado.matchKey] || [];
+            if (horariosDelMedico.length === 0) {
+                for (const [k, v] of Object.entries(mapaDisponibilidad)) {
+                    if (medicoSeleccionado.matchKey.includes(k) || k.includes(medicoSeleccionado.matchKey)) {
+                        horariosDelMedico = v;
+                        break;
+                    }
                 }
             }
-        }
 
-        const horarioDiaActual = horariosDelMedico.find(h => h.dia.toLowerCase() === nombreDiaSeleccionado.toLowerCase());
+            const horarioDiaActual = horariosDelMedico.find(h => h.dia.toLowerCase() === nombreDiaSeleccionado.toLowerCase());
 
-        let huecosCalculados = [];
-        if (horarioDiaActual && horarioDiaActual.franjas) {
-            horarioDiaActual.franjas.forEach(franja => {
-                const [hInicio, mInicio] = franja.inicio.split(":").map(Number);
-                const [hFin, mFin] = franja.fin.split(":").map(Number);
-                const duracion = Number(franja.duracionCitaMinutos) || 20;
+            let huecosCalculados = [];
+            if (horarioDiaActual && horarioDiaActual.franjas) {
+                horarioDiaActual.franjas.forEach(franja => {
+                    const [hInicio, mInicio] = franja.inicio.split(":").map(Number);
+                    const [hFin, mFin] = franja.fin.split(":").map(Number);
+                    const duracion = Number(franja.duracionCitaMinutos) || 20;
 
-                let minutosActuales = hInicio * 60 + mInicio;
-                const minutosFin = hFin * 60 + mFin;
+                    let minutosActuales = hInicio * 60 + mInicio;
+                    const minutosFin = hFin * 60 + mFin;
 
-                while (minutosActuales + duracion <= minutosFin) {
-                    const hStr = String(Math.floor(minutosActuales / 60)).padStart(2, "0");
-                    const mStr = String(minutosActuales % 60).padStart(2, "0");
-                    huecosCalculados.push(`${hStr}:${mStr}`);
-                    minutosActuales += duracion;
-                }
-            });
-        }
+                    while (minutosActuales + duracion <= minutosFin) {
+                        const finHueco = minutosActuales + duracion;
 
-        let horasOcupadas = new Set();
-        try {
-            const citasGlobales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-            citasGlobales.forEach((c) => {
-                const mismaFecha = c.fecha === fecha;
-                const mismoMedico = (c.medico || "").toLowerCase() === medicoSeleccionado.email.toLowerCase() || 
-                                  (c.medico || "").toLowerCase() === medicoSeleccionado.nombre.toLowerCase() ||
-                                  (c.medico || "").toLowerCase() === medicoSeleccionado.id.toLowerCase();
-                const estadoCita = (c.estado || "").toLowerCase();
-                const estaOcupada = ["aceptada", "confirmada", "pendiente", "completada"].includes(estadoCita);
+                        const estaBloqueadoParcialmente = bloqueosParciales.some(bp => {
+                            const bIni = horaAMinutos(bp.horaInicio);
+                            const bFin = horaAMinutos(bp.horaFin);
+                            return minutosActuales < bFin && finHueco > bIni;
+                        });
 
-                if (mismaFecha && mismoMedico && estaOcupada) {
-                    const horaLimpia = (c.hora || "").replace(" h", "").trim();
-                    if (horaLimpia) horasOcupadas.add(horaLimpia);
-                }
-            });
-        } catch (err) {
-            console.error("Error al comprobar citas ocupadas:", err);
-        }
+                        if (!estaBloqueadoParcialmente) {
+                            const hStr = String(Math.floor(minutosActuales / 60)).padStart(2, "0");
+                            const mStr = String(minutosActuales % 60).padStart(2, "0");
+                            huecosCalculados.push(`${hStr}:${mStr}`);
+                        }
 
-        const ahora = new Date();
-        const yyyy = ahora.getFullYear();
-        const mm = String(ahora.getMonth() + 1).padStart(2, "0");
-        const dd = String(ahora.getDate()).padStart(2, "0");
-        const hoyStr = `${yyyy}-${mm}-${dd}`;
-
-        const horasValidas = huecosCalculados.filter((hStr) => {
-            if (horasOcupadas.has(hStr)) return false;
-
-            if (fecha === hoyStr) {
-                const [h, m] = hStr.split(":").map(Number);
-                if (h < ahora.getHours() || (h === ahora.getHours() && m <= ahora.getMinutes())) {
-                    return false;
-                }
+                        minutosActuales += duracion;
+                    }
+                });
             }
-            return true;
-        });
 
-        setHorasDisponibles(horasValidas);
-        setHora(horasValidas.length > 0 ? horasValidas[0] : "");
-    }, [fecha, medicoSeleccionado, mapaDisponibilidad]);
+            let horasOcupadas = new Set();
+            let lecturasCitas = 0;
 
-    const handleSolicitarCita = (e) => {
+            try {
+                const qCitasDia = query(
+                    collection(db, "citas"),
+                    where("fecha", "==", fecha)
+                );
+                const snapCitas = await getDocs(qCitasDia);
+                lecturasCitas = snapCitas.size;
+
+                snapCitas.forEach(docSnap => {
+                    const c = docSnap.data();
+                    const estadoCita = (c.estado || "").toLowerCase();
+                    if (["aceptada", "confirmada", "pendiente"].includes(estadoCita)) {
+                        const horaLimpia = (c.hora || "").replace(" h", "").trim();
+                        if (horaLimpia) horasOcupadas.add(horaLimpia);
+                    }
+                });
+            } catch (err) {
+                console.error("Error en consulta acotada de citas:", err);
+            }
+
+            try {
+                const citasLocales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
+                citasLocales.forEach((c) => {
+                    const mismaFecha = c.fecha === fecha;
+                    const mismoMedico = (c.medico || "").toLowerCase() === medicoSeleccionado.email.toLowerCase() || 
+                                      (c.medico || "").toLowerCase() === medicoSeleccionado.nombre.toLowerCase() ||
+                                      (c.medico || "").toLowerCase() === medicoSeleccionado.id.toLowerCase();
+                    const estadoCita = (c.estado || "").toLowerCase();
+                    const estaOcupada = ["aceptada", "confirmada", "pendiente", "completada"].includes(estadoCita);
+
+                    if (mismaFecha && mismoMedico && estaOcupada) {
+                        const horaLimpia = (c.hora || "").replace(" h", "").trim();
+                        if (horaLimpia) horasOcupadas.add(horaLimpia);
+                    }
+                });
+            } catch (err) {
+                console.error("Error al comprobar citas locales:", err);
+            }
+
+            setMetricasLectura(prev => ({ ...prev, consultaHuecos: lecturasCitas }));
+
+            const ahora = new Date();
+            const yyyy = ahora.getFullYear();
+            const mm = String(ahora.getMonth() + 1).padStart(2, "0");
+            const dd = String(ahora.getDate()).padStart(2, "0");
+            const hoyStr = `${yyyy}-${mm}-${dd}`;
+
+            const horasValidas = huecosCalculados.filter((hStr) => {
+                if (horasOcupadas.has(hStr)) return false;
+
+                if (fecha === hoyStr) {
+                    const [h, m] = hStr.split(":").map(Number);
+                    if (h < ahora.getHours() || (h === ahora.getHours() && m <= ahora.getMinutes())) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            setHorasDisponibles(horasValidas);
+            setHora(horasValidas.length > 0 ? horasValidas[0] : "");
+        };
+
+        calcularHuecosDelDia();
+    }, [fecha, medicoSeleccionado, mapaDisponibilidad, bloqueosAgenda]);
+
+    const handleSolicitarCita = async (e) => {
         e.preventDefault();
         if (!especialidad || !medicoSeleccionado || !fecha || !hora) return;
+
+        try {
+            const snapBloq = await getDocs(collection(db, "bloqueos_agenda"));
+            const bloqueosActuales = snapBloq.docs.map(d => d.data());
+
+            const estaBloqueadoAhora = bloqueosActuales.some(b => {
+                const enRangoFecha = fecha >= b.fechaInicio && fecha <= (b.fechaFin || b.fechaInicio);
+                if (!enRangoFecha) return false;
+                const afecta = b.alcance === "global" || (b.profesionalId || "").toLowerCase() === medicoSeleccionado.id.toLowerCase();
+                if (!afecta) return false;
+                if (b.tipoBloqueo === "completo" || !b.tipoBloqueo) return true;
+                if (b.tipoBloqueo === "parcial") {
+                    return hora >= b.horaInicio && hora <= b.horaFin;
+                }
+                return false;
+            });
+
+            if (estaBloqueadoAhora) {
+                alert("Lo sentimos, este hueco o fecha acaba de ser bloqueado por administración. Por favor, seleccione otra fecha u hora.");
+                setFecha("");
+                setHora("");
+                setHorasDisponibles([]);
+                return;
+            }
+        } catch (err) {
+            console.error("Error al verificar bloqueo previo a la reserva:", err);
+        }
 
         const citasActuales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
         
@@ -254,7 +358,7 @@ export default function PedirCitaPage() {
         setMotivo("");
 
         setTimeout(() => {
-        router.push("/paciente/dashboard");
+            router.push("/paciente/dashboard");
         }, 3000);
     };
 
@@ -315,12 +419,17 @@ export default function PedirCitaPage() {
                 )}
 
                 <div className="p-4 rounded-2xl border bg-teal-50/70 border-teal-200 text-teal-900 text-xs space-y-2 shadow-xs">
-                    <div className="flex items-center space-x-2 font-bold text-teal-800">
-                        <span className="w-5 h-5 rounded-full bg-teal-200 text-teal-800 flex items-center justify-center text-[10px]">i</span>
-                        <span>Cuadro Clínico y Disponibilidad Horaria (Turnos de Mañana y Tarde)</span>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 font-bold text-teal-800">
+                            <span className="w-5 h-5 rounded-full bg-teal-200 text-teal-800 flex items-center justify-center text-[10px]">i</span>
+                            <span>Cuadro Clínico y Disponibilidad Horaria (Turnos de Mañana y Tarde)</span>
+                        </div>
+                        <span className="text-[10px] font-mono bg-white/80 text-teal-800 px-2 py-0.5 rounded border border-teal-200">
+                            Lecturas: {metricasLectura.cargaInicial} init / {metricasLectura.consultaHuecos} día
+                        </span>
                     </div>
                     <p className="text-[11px] text-slate-600">
-                        El sistema muestra exclusivamente a los profesionales con plantillas activas y calcula de forma automática los huecos disponibles correspondientes tanto a las franjas de mañana como a las de tarde configuradas en la sede.
+                        El sistema muestra exclusivamente a los profesionales con plantillas activas y calcula de forma automática los huecos disponibles correspondientes tanto a las franjas de mañana como a las de tarde configuradas en la sede, descontando festivos y bloqueos en tiempo real.
                     </p>
                 </div>
 
@@ -407,7 +516,7 @@ export default function PedirCitaPage() {
                                     required
                                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 bg-white focus:outline-none focus:border-teal-600"
                                 >
-                                    {horasDisponibles.map((h) => (
+                                    {horasDisponibles.link ? null : horasDisponibles.map((h) => (
                                         <option key={h} value={h}>
                                             {h} h
                                         </option>

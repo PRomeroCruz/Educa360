@@ -23,7 +23,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // 3. PROFESIONALES
+    // 3. PROFESIONALES Y SEDES
     match /profesionales_publicos/{profesionalId} {
       allow read: if true;
       allow write: if request.auth != null && (getRol() in ['admin', 'admin_sistema']);
@@ -35,6 +35,12 @@ service cloud.firestore {
     }
 
     match /disponibilidad_sedes/{dispoId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (getRol() in ['admin', 'admin_sistema', 'profesional', 'profesional_sanitario']);
+    }
+
+    // NUEVO: Bloqueos de agenda (Vacaciones, festivos y cierres parciales)
+    match /bloqueos_agenda/{bloqueoId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && (getRol() in ['admin', 'admin_sistema', 'profesional', 'profesional_sanitario']);
     }
