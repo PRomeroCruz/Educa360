@@ -150,10 +150,10 @@ export default function MedicoDashboardPage() {
         const medicoCita = (c.medico || "").toLowerCase();
         const estadoCita = (c.estado || "").toLowerCase();
 
-        const esDelMedico = medicoCita === emailMedicoActual || medicoCita.includes("medico");
-        const esAceptada = estadoCita === "aceptada" || estadoCita === "confirmada";
+        const esDelMedico = !medicoCita || medicoCita === emailMedicoActual || medicoCita.includes("medico");
+        const esConfirmada = estadoCita === "aceptada" || estadoCita === "confirmada";
 
-        return esDelMedico && esAceptada;
+        return esDelMedico && esConfirmada;
     });
 
     return (
@@ -214,7 +214,7 @@ export default function MedicoDashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-1.5 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-24 h-24 bg-teal-50 rounded-bl-full -z-0 opacity-60"></div>
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold relative z-10">Citas Aceptadas</span>
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold relative z-10">Citas Confirmadas</span>
                         <p className="text-3xl font-extrabold text-slate-900 relative z-10">{citasDelMedicoAceptadas.length}</p>
                         <p className="text-[11px] text-teal-700 font-medium relative z-10">Sincronizadas en tiempo real</p>
                     </div>
@@ -241,7 +241,7 @@ export default function MedicoDashboardPage() {
                     <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <h2 className="text-base font-bold text-slate-900 tracking-tight">
-                                Agenda Activa · Consultas Aceptadas
+                                Agenda Activa · Consultas Confirmadas
                             </h2>
                             <p className="text-xs text-slate-500 mt-0.5">
                                 Listado exclusivo de citas confirmadas con opción de desplegar el panel de diagnóstico clínico.
@@ -257,9 +257,9 @@ export default function MedicoDashboardPage() {
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                 </div>
-                                <p className="text-xs font-bold text-slate-700">No hay consultas aceptadas pendientes</p>
+                                <p className="text-xs font-bold text-slate-700">No hay consultas confirmadas pendientes</p>
                                 <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                                    Las nuevas citas aceptadas aparecerán automáticamente en esta sección.
+                                    Las nuevas citas confirmadas aparecerán automáticamente en esta sección.
                                 </p>
                             </div>
                         ) : (
@@ -311,7 +311,7 @@ export default function MedicoDashboardPage() {
                                                     <td className="py-4 px-4 whitespace-nowrap">
                                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide bg-blue-50 text-blue-700 border border-blue-200">
                                                             <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                                                            {cita.estado}
+                                                            CONFIRMADA
                                                         </span>
                                                     </td>
 
@@ -405,7 +405,7 @@ export default function MedicoDashboardPage() {
                                     Acción Crítica
                                 </span>
                                 <h3 className="text-lg font-bold text-slate-900 tracking-tight pt-1">
-                                    ¿Desea anular esta consulta médica aceptada?
+                                    ¿Desea anular esta consulta médica confirmada?
                                 </h3>
                                 <p className="text-xs text-slate-500 leading-relaxed px-2">
                                     Está a punto de anular la cita del paciente <strong className="text-slate-700">{citaParaAnular.userEmail}</strong> programada para el <strong className="text-slate-700">{citaParaAnular.fecha}</strong> a las <strong className="text-slate-700">{citaParaAnular.hora}</strong>.
