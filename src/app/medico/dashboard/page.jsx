@@ -211,7 +211,7 @@ export default function MedicoDashboardPage() {
                                                     <td className="py-4 px-4"><span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">CONFIRMADA</span></td>
                                                     <td className="py-4 px-6 text-right space-x-2">
                                                         <button onClick={() => toggleDesplegableDiagnostico(cita.id)} className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer">
-                                                            {estaDiagnosticando ? "Cerrar Panel" : "Atender / Borrador"}
+                                                            {estaDiagnosticando ? "Cerrar Panel" : "Atender"}
                                                         </button>
                                                         <button onClick={() => abrirModalAnular(cita)} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer">Anular</button>
                                                     </td>
