@@ -351,6 +351,8 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
             telefono: "+34600111004",
             fecha_nacimiento: "1985-03-12",
             direccion: "Calle del Lago, 10, 28001 Madrid",
+            contactoEmergencia: "Familiar Autorizado (600 111 222)",
+            grupoSanguineo: "A+",
             notas: "Alergia al látex.",
         },
         {
@@ -362,6 +364,8 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
             telefono: "+34600222002",
             fecha_nacimiento: "1990-07-23",
             direccion: "Avenida de la Constitución, 88, 28004 Madrid",
+            contactoEmergencia: "Familiar Autorizado (600 111 222)",
+            grupoSanguineo: "0+",
             notas: "Nombre largo con acentos y eñe para pruebas de interfaz.",
         },
         {
@@ -373,6 +377,8 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
             telefono: "+34600333003",
             fecha_nacimiento: "1978-11-05",
             direccion: "Paseo del Príncipe, 21, 28008 Madrid",
+            contactoEmergencia: "Familiar Autorizado (600 111 222)",
+            grupoSanguineo: "B+",
             notas: "Apellido con apóstrofo y carácter especial (Æ).",
         },
         {
@@ -384,6 +390,8 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
             telefono: "+34600444004",
             fecha_nacimiento: "1995-01-30",
             direccion: "Calle Ancha, 5, 28012 Madrid",
+            contactoEmergencia: "Familiar Autorizado (600 111 222)",
+            grupoSanguineo: "AB+",
             notas: "Paciente registrado sin citas previas.",
         },
     ];
@@ -652,11 +660,13 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
                 nombre,
                 apellidos,
                 email: u.email,
-                telefono: u.phone,
+                telefono: u.phone || "+34600000000",
                 fecha_nacimiento: fechaNacimientoAleatoria(i),
                 direccion: `Calle Ficticia de Prueba ${100 + i}, 280${(10 + (i % 90)).toString().padStart(2, "0")} Madrid`,
+                contactoEmergencia: "Familiar Autorizado (600 111 222)",
+                grupoSanguineo: i % 2 === 0 ? "A+" : "0+",
                 notas: i === 0 ? "Paciente adicional sin citas previas." : `Nota de prueba ${i + 1}.`,
-            });
+            }, { merge: true });
             perfilesCreados++;
         }
     }

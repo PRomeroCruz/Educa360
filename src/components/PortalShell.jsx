@@ -264,6 +264,9 @@ export default function PortalShell({
                                         <a href="/paciente/diagnosticos" onClick={() => setMobileMenuOpen(false)} className={`block py-1.5 px-3 rounded-lg text-xs transition ${pathname === "/paciente/diagnosticos" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
                                             • Ver Diagnósticos
                                         </a>
+                                        <a href="/paciente/profile" onClick={() => setMobileMenuOpen(false)} className={`block py-1.5 px-3 rounded-lg text-xs transition ${pathname === "/paciente/profile" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
+                                            • Mi Perfil
+                                        </a>
                                     </div>
                                 )}
                             </div>
