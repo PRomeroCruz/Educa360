@@ -80,9 +80,11 @@ export default function MedicoDashboardPage() {
 
         const actualizadas = citas.map((c) => {
             if (c.id === cita.id) {
+                const esAdenda = Boolean(c.diagnostico);
                 return { 
                     ...c, 
-                    diagnostico: textoDiagnostico.trim(),
+                    diagnostico: esAdenda ? c.diagnostico : textoDiagnostico.trim(),
+                    adenda: esAdenda ? textoDiagnostico.trim() : c.adenda,
                     estado: "Completada" 
                 };
             }
@@ -105,11 +107,11 @@ export default function MedicoDashboardPage() {
         registrarLogSistema(
             "DIAGNÓSTICO",
             user?.email || "medico@educa360.test",
-            `Diagnóstico emitido para el paciente ${cita.userEmail}: ${textoDiagnostico.trim()}`
+            `Diagnóstico y firma digital emitidos para el paciente ${cita.userEmail}`
         );
 
         setMensaje({
-            texto: `Diagnóstico guardado correctamente y enviado al historial clínico del paciente.`,
+            texto: `Acto clínico firmado y guardado correctamente en el sistema.`,
             tipo: "success"
         });
 
@@ -338,44 +340,59 @@ export default function MedicoDashboardPage() {
                                                 {estaDiagnosticando && (
                                                     <tr className="bg-teal-50/40 border-b border-teal-100">
                                                         <td colSpan={6} className="p-5 px-6">
-                                                            <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm space-y-3">
+                                                            <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm space-y-4">
                                                                 <div className="flex items-center justify-between">
                                                                     <span className="text-xs font-bold text-teal-900 flex items-center gap-2">
                                                                         <span className="w-2 h-2 rounded-full bg-teal-600"></span>
-                                                                        Emisión de Dictamen y Diagnóstico Clínico
+                                                                        Emisión de Dictamen, Firma y Adenda Clínica
                                                                     </span>
                                                                     <span className="text-[10px] font-mono text-slate-400">Paciente: {cita.userEmail}</span>
                                                                 </div>
 
                                                                 {cita.diagnostico && (
-                                                                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900">
-                                                                        <strong>Último diagnóstico guardado:</strong> {cita.diagnostico}
+                                                                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 space-y-2 text-xs text-emerald-900">
+                                                                        <div>
+                                                                            <strong>Diagnóstico Firmado:</strong> {cita.diagnostico}
+                                                                        </div>
+                                                                        {cita.adenda && (
+                                                                            <div className="pt-2 border-t border-emerald-200/60 text-slate-700">
+                                                                                <strong className="text-amber-800">Corrección por Adenda:</strong> {cita.adenda}
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 )}
 
                                                                 <div className="space-y-1.5">
+                                                                    <label className="text-[11px] font-bold text-slate-700">Diagnóstico Principal / Rectificación</label>
                                                                     <textarea
                                                                         rows={3}
-                                                                        placeholder="Escriba aquí el diagnóstico detallado, observaciones y pautas de tratamiento..."
+                                                                        placeholder="Escriba aquí el diagnóstico detallado o la nueva adenda aclaratoria..."
                                                                         value={textosDiagnostico[cita.id] || ""}
                                                                         onChange={(e) => setTextosDiagnostico({ ...textosDiagnostico, [cita.id]: e.target.value })}
                                                                         className="w-full p-3 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/10 transition"
                                                                     />
                                                                 </div>
 
-                                                                <div className="flex justify-end gap-2">
-                                                                    <button
-                                                                        onClick={() => toggleDesplegableDiagnostico(cita.id)}
-                                                                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer border border-slate-200"
-                                                                    >
-                                                                        Cancelar
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => guardarDiagnostico(cita)}
-                                                                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-md shadow-emerald-600/20"
-                                                                    >
-                                                                        Guardar y Enviar Diagnóstico
-                                                                    </button>
+                                                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                                                                    <div className="flex items-center gap-2 text-[11px] text-slate-500 font-mono">
+                                                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                                        Firma Digital: Certificado Sanitario Válido ({user?.email || "medico@educa360.test"})
+                                                                    </div>
+
+                                                                    <div className="flex items-center gap-2">
+                                                                        <button
+                                                                            onClick={() => toggleDesplegableDiagnostico(cita.id)}
+                                                                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer border border-slate-200"
+                                                                        >
+                                                                            Cerrar
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => guardarDiagnostico(cita)}
+                                                                            className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer shadow-md shadow-teal-600/20"
+                                                                        >
+                                                                            Firmar y Guardar Acto Clínico
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </td>

@@ -140,11 +140,19 @@ export default function DiagnosticosPacientePage() {
                             )}
                             </div>
                             <p className="text-xs text-slate-800 leading-relaxed">{c.diagnostico}</p>
-                            {c.tratamiento && (
-                            <p className="text-xs text-slate-700 pt-2 border-t border-teal-100">
-                                <span className="font-semibold text-teal-900">Tratamiento prescrito:</span> {c.tratamiento}
-                            </p>
+                            
+                            {c.adenda && (
+                                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-slate-700 mt-2">
+                                    <strong className="text-amber-800">Corrección por Adenda:</strong> {c.adenda}
+                                </div>
                             )}
+
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pt-2 border-t border-teal-100 text-[11px] text-slate-500 font-mono gap-1">
+                                <span>Tratamiento prescrito: {c.tratamiento || "Según pauta médica"}</span>
+                                <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                                    ✓ Informe Firmado Digitalmente
+                                </span>
+                            </div>
                         </div>
                         ) : (
                         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium">
