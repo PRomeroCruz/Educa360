@@ -59,8 +59,19 @@ export default function MedicoDashboardPage() {
         setCitas(actualizadas);
         localStorage.setItem("citas_educa360", JSON.stringify(actualizadas));
 
-        registrarLogSistema("VALIDACIÓN", user?.email || "medico@educa360.test", `Consulta marcada como "${nuevoEstado}".`);
-        setMensaje({ texto: `La cita ha sido marcada como: ${nuevoEstado}`, tipo: nuevoEstado === "Cancelada" ? "error" : "success" });
+        if (nuevoEstado === "No presentado") {
+            localStorage.removeItem(`borrador_diag_${citaId}`);
+            localStorage.removeItem(`borrador_trat_${citaId}`);
+        }
+
+        const esIncomparecencia = nuevoEstado === "No presentado";
+        registrarLogSistema("VALIDACIÓN", user?.email || "medico@educa360.test", `Consulta marcada como "${nuevoEstado}". El paciente no se ha presentado.`);
+        
+        setMensaje({ 
+            texto: esIncomparecencia ? "El paciente no se ha presentado. La cita ha sido apartada de la agenda activa." : `La cita ha sido marcada como: ${nuevoEstado}`, 
+            tipo: "error" 
+        });
+        
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
@@ -190,30 +201,51 @@ export default function MedicoDashboardPage() {
                                         <th className="py-3 px-4 font-semibold">Fecha y Hora</th>
                                         <th className="py-3 px-4 font-semibold">Motivo</th>
                                         <th className="py-3 px-4 font-semibold">Estado</th>
-                                        <th className="py-3 px-6 font-semibold text-right">Acciones</th>
+                                        <th className="py-3 px-6 font-semibold text-right">Acciones de Asistencia y Cita</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {citasDelMedicoAceptadas.map((cita) => {
                                         const estaDiagnosticando = citasDiagnosticando[cita.id];
                                         const tieneBorrador = Boolean(localStorage.getItem(`borrador_diag_${cita.id}`));
+                                        const inicialPaciente = (cita.userEmail || "P").charAt(0).toUpperCase();
 
                                         return (
                                             <Fragment key={cita.id}>
-                                                <tr className="hover:bg-slate-50/50 transition align-top">
-                                                    <td className="py-4 px-6 font-bold text-slate-900">{cita.userEmail}</td>
+                                                <tr className="hover:bg-slate-50/50 transition align-middle">
+                                                    <td className="py-4 px-6">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-xl bg-teal-50/80 border border-teal-200/80 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                                                {inicialPaciente}
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-bold text-slate-900 block">{cita.userEmail}</span>
+                                                                {tieneBorrador && (
+                                                                    <span className="inline-block mt-1 text-[10px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200 font-bold">
+                                                                        Borrador Guardado
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </td>
                                                     <td className="py-4 px-4 text-slate-700">{cita.especialidad}</td>
                                                     <td className="py-4 px-4 font-mono">{cita.fecha} {cita.hora}</td>
-                                                    <td className="py-4 px-4 text-slate-600">
-                                                        {cita.motivo}
-                                                        {tieneBorrador && <span className="block mt-1 text-[10px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-200 font-bold w-fit">Borrador Guardado</span>}
+                                                    <td className="py-4 px-4 text-slate-600">{cita.motivo}</td>
+                                                    <td className="py-4 px-4">
+                                                        <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                                                            CONFIRMADA
+                                                        </span>
                                                     </td>
-                                                    <td className="py-4 px-4"><span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">CONFIRMADA</span></td>
-                                                    <td className="py-4 px-6 text-right space-x-2">
-                                                        <button onClick={() => toggleDesplegableDiagnostico(cita.id)} className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer">
-                                                            {estaDiagnosticando ? "Cerrar Panel" : "Atender"}
-                                                        </button>
-                                                        <button onClick={() => abrirModalAnular(cita)} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer">Anular</button>
+                                                    <td className="py-4 px-6 text-right">
+                                                        <div className="flex items-center justify-end gap-2 flex-wrap">
+                                                            <button onClick={() => toggleDesplegableDiagnostico(cita.id)} className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                                                                {estaDiagnosticando ? "Cerrar Panel" : "Atender"}
+                                                            </button>
+                                                            <button onClick={() => actualizarEstadoCita(cita.id, "No presentado")} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer flex items-center gap-1">
+                                                                <span>✕ No asistió</span>
+                                                            </button>
+                                                            <button onClick={() => abrirModalAnular(cita)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer">Anular</button>
+                                                        </div>
                                                     </td>
                                                 </tr>
 

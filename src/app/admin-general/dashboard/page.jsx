@@ -58,15 +58,55 @@ export default function AdminGeneralDashboardPage() {
 
         setCitas(actualizadas);
         localStorage.setItem("citas_educa360", JSON.stringify(actualizadas));
+
+        if (accionPendiente === "Aceptada") {
+            const cuerpoCorreo = `Estimado/a paciente,
+
+Le informamos que su cita en nuestro centro ha sido validada y confirmada correctamente.
+
+Detalles de la visita:
+- Fecha: ${citaSeleccionada.fecha}
+- Hora: ${citaSeleccionada.hora}
+- Sede: Hospital Central Educa360 (${citaSeleccionada.especialidad})
+
+Normativa importante:
+- Por favor, acuda con al menos 10 minutos de antelación para el control de acceso.
+- Si necesita realizar alguna modificación o anulación, recuerde que debe hacerlo con un mínimo de 24 horas de antelación desde su portal del paciente.
+
+Atentamente,
+Servicio de Admisión y Gestión - Educa360`;
+
+            console.log("==================================================");
+            console.log(" [SIMULACIÓN SERVIDOR] CORREO ENVIADO AL PACIENTE ");
+            console.log(" Destinatario:", citaSeleccionada.userEmail);
+            console.log(" Asunto: Cita médica validada y confirmada - Educa360");
+            console.log("--------------------------------------------------");
+            console.log(cuerpoCorreo);
+            console.log("==================================================");
+
+            const bandejaEmails = JSON.parse(localStorage.getItem(`emails_${citaSeleccionada.userEmail}`) || "[]");
+            const nuevoEmailNotificacion = {
+                id: Date.now(),
+                asunto: "Cita médica validada y confirmada - Educa360",
+                contenido: cuerpoCorreo,
+                fecha: new Date().toISOString().split("T")[0],
+                leido: false
+            };
+            localStorage.setItem(`emails_${citaSeleccionada.userEmail}`, JSON.stringify([nuevoEmailNotificacion, ...bandejaEmails]));
+        }
         
-        setMensaje(`La cita de ${citaSeleccionada.userEmail} ha sido marcada como: ${accionPendiente}`);
+        setMensaje(
+            accionPendiente === "Aceptada"
+                ? `La cita de ${citaSeleccionada.userEmail} ha sido aceptada. (Revise la terminal para ver el correo simulado)`
+                : `La cita de ${citaSeleccionada.userEmail} ha sido marcada como: ${accionPendiente}`
+        );
         setTipoMensaje(accionPendiente === "Aceptada" ? "success" : "error");
         
         setModalAbierto(false);
         setCitaSeleccionada(null);
         setAccionPendiente(null);
 
-        setTimeout(() => setMensaje(""), 4000);
+        setTimeout(() => setMensaje(""), 6000);
     };
 
     const handleCerrarSesion = async () => {
@@ -149,16 +189,26 @@ export default function AdminGeneralDashboardPage() {
                                         const estadoLower = (cita.estado || "pendiente").toLowerCase();
                                         const esPendiente = estadoLower.includes("pendiente");
                                         const esAceptada = estadoLower.includes("aceptada") || estadoLower.includes("confirmada");
+                                        const esNoPresentado = estadoLower.includes("no presentado");
+                                        const inicialPaciente = (cita.userEmail || "P").charAt(0).toUpperCase();
                                         
                                         const esFinalizadaOCancelada = 
                                             estadoLower.includes("cancelada") || 
                                             estadoLower.includes("anulada") || 
-                                            estadoLower.includes("completada");
+                                            estadoLower.includes("completada") ||
+                                            esNoPresentado;
 
                                         return (
                                             <tr key={cita.id} className="hover:bg-slate-50/80 transition">
-                                                <td className="py-3.5 pr-3 font-medium text-slate-900">
-                                                    {cita.userEmail}
+                                                <td className="py-3.5 pr-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-xl bg-teal-50/80 border border-teal-200/80 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                                            {inicialPaciente}
+                                                        </div>
+                                                        <span className="font-bold text-slate-900">
+                                                            {cita.userEmail}
+                                                        </span>
+                                                    </div>
                                                 </td>
                                                 <td className="py-3.5 pr-3 text-slate-600">
                                                     <div className="font-semibold text-slate-900">{cita.especialidad}</div>
@@ -258,7 +308,7 @@ export default function AdminGeneralDashboardPage() {
                                 }`}>
                                     {esCancelacion 
                                         ? "Esta acción quedará registrada en la auditoría y bloqueará la consulta." 
-                                        : "La consulta pasará a estar activa en la agenda del facultativo asignado."}
+                                        : "La consulta pasará a estar activa y se imprimirá la traza del correo en la terminal."}
                                 </p>
                             </div>
 
