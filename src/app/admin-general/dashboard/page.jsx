@@ -8,12 +8,47 @@ import { useAuthGuard } from "@/lib/useAuthGuard";
 import PortalShell from "@/components/PortalShell";
 import { Tarjeta } from "@/components/ComponentesUI";
 import { EstadoCargando } from "@/components/EstadosUI";
+import { registrarLogSistema } from "@/app/admin/dashboard/page";
+
+const TRANSICIONES_ADMIN_PRUEBA = {
+    "Solicitada": ["En curso"],
+    "En curso": [],
+    "Con resultado": [],
+    "Informada": [],
+};
+
+export function obtenerVistaAdministracionPrueba(prueba, rolUsuario = "admin-general") {
+    const esAdmin = String(rolUsuario || "").toLowerCase().includes("admin");
+    if (esAdmin) {
+        return {
+            id: prueba.id,
+            pacienteEmail: prueba.pacienteEmail,
+            especialidad: prueba.especialidad,
+            tipoPrueba: prueba.tipoPrueba,
+            fechaSolicitud: prueba.fechaSolicitud,
+            estado: prueba.estado,
+            contenidoBloqueado: true,
+        };
+    }
+    return {
+        id: prueba.id,
+        pacienteEmail: prueba.pacienteEmail,
+        especialidad: prueba.especialidad,
+        tipoPrueba: prueba.tipoPrueba,
+        fechaSolicitud: prueba.fechaSolicitud,
+        estado: prueba.estado,
+        indicaciones: prueba.indicaciones,
+        resultado: prueba.resultado,
+        contenidoBloqueado: false,
+    };
+}
 
 export default function AdminGeneralDashboardPage() {
     const router = useRouter();
     const { user, loading: authLoading } = useAuthGuard("admin-general");
 
     const [citas, setCitas] = useState([]);
+    const [solicitudesPruebas, setSolicitudesPruebas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [mensaje, setMensaje] = useState("");
     const [tipoMensaje, setTipoMensaje] = useState("info");
@@ -28,8 +63,12 @@ export default function AdminGeneralDashboardPage() {
         try {
             const guardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             setCitas(guardadas);
+
+            const pruebasGuardadas = JSON.parse(localStorage.getItem("solicitudes_pruebas_educa360") || "[]");
+            setSolicitudesPruebas(pruebasGuardadas);
         } catch {
             setCitas([]);
+            setSolicitudesPruebas([]);
         }
 
         if (!authLoading) {
@@ -39,6 +78,35 @@ export default function AdminGeneralDashboardPage() {
 
         return () => clearTimeout(timer);
     }, [authLoading]);
+
+    const avanzarEstadoPruebaAdmin = (pruebaId, siguienteEstado) => {
+        const actual = solicitudesPruebas.find((p) => p.id === pruebaId);
+        if (!actual) return;
+
+        const permitidos = TRANSICIONES_ADMIN_PRUEBA[actual.estado] || [];
+        if (!permitidos.includes(siguienteEstado)) {
+            setMensaje(`Transición administrativa no permitida de "${actual.estado}" a "${siguienteEstado}".`);
+            setTipoMensaje("error");
+            setTimeout(() => setMensaje(""), 4000);
+            return;
+        }
+
+        const actualizadas = solicitudesPruebas.map((p) =>
+            p.id === pruebaId ? { ...p, estado: siguienteEstado } : p
+        );
+        setSolicitudesPruebas(actualizadas);
+        localStorage.setItem("solicitudes_pruebas_educa360", JSON.stringify(actualizadas));
+
+        registrarLogSistema(
+            "PRUEBA_ADMIN_ESTADO",
+            user?.email || "administracion@educa360.test",
+            `Administración cambió el estado de la prueba "${actual.tipoPrueba}" (${actual.pacienteEmail}) a "${siguienteEstado}" (sin acceso a contenido clínico).`
+        );
+
+        setMensaje(`La solicitud de prueba "${actual.tipoPrueba}" ha pasado a estado: ${siguienteEstado}.`);
+        setTipoMensaje("success");
+        setTimeout(() => setMensaje(""), 4000);
+    };
 
     const solicitarConfirmacion = (cita, nuevoEstado) => {
         setCitaSeleccionada(cita);
@@ -62,19 +130,19 @@ export default function AdminGeneralDashboardPage() {
         if (accionPendiente === "Aceptada") {
             const cuerpoCorreo = `Estimado/a paciente,
 
-Le informamos que su cita en nuestro centro ha sido validada y confirmada correctamente.
+                    Le informamos que su cita en nuestro centro ha sido validada y confirmada correctamente.
 
-Detalles de la visita:
-- Fecha: ${citaSeleccionada.fecha}
-- Hora: ${citaSeleccionada.hora}
-- Sede: Hospital Central Educa360 (${citaSeleccionada.especialidad})
+                    Detalles de la visita:
+                    - Fecha: ${citaSeleccionada.fecha}
+                    - Hora: ${citaSeleccionada.hora}
+                    - Sede: Hospital Central Educa360 (${citaSeleccionada.especialidad})
 
-Normativa importante:
-- Por favor, acuda con al menos 10 minutos de antelación para el control de acceso.
-- Si necesita realizar alguna modificación o anulación, recuerde que debe hacerlo con un mínimo de 24 horas de antelación desde su portal del paciente.
+                    Normativa importante:
+                    - Por favor, acuda con al menos 10 minutos de antelación para el control de acceso.
+                    - Si necesita realizar alguna modificación o anulación, recuerde que debe hacerlo con un mínimo de 24 horas de antelación desde su portal del paciente.
 
-Atentamente,
-Servicio de Admisión y Gestión - Educa360`;
+                    Atentamente,
+                    Servicio de Admisión y Gestión - Educa360`;
 
             console.log("==================================================");
             console.log(" [SIMULACIÓN SERVIDOR] CORREO ENVIADO AL PACIENTE ");
@@ -94,14 +162,14 @@ Servicio de Admisión y Gestión - Educa360`;
             };
             localStorage.setItem(`emails_${citaSeleccionada.userEmail}`, JSON.stringify([nuevoEmailNotificacion, ...bandejaEmails]));
         }
-        
+
         setMensaje(
             accionPendiente === "Aceptada"
                 ? `La cita de ${citaSeleccionada.userEmail} ha sido aceptada. (Revise la terminal para ver el correo simulado)`
                 : `La cita de ${citaSeleccionada.userEmail} ha sido marcada como: ${accionPendiente}`
         );
         setTipoMensaje(accionPendiente === "Aceptada" ? "success" : "error");
-        
+
         setModalAbierto(false);
         setCitaSeleccionada(null);
         setAccionPendiente(null);
@@ -123,6 +191,21 @@ Servicio de Admisión y Gestión - Educa360`;
     }
 
     const esCancelacion = accionPendiente === "Cancelada";
+
+    const badgeEstadoPruebaAdmin = (estado) => {
+        switch (estado) {
+            case "Solicitada":
+                return "bg-amber-50 text-amber-700 border-amber-200";
+            case "En curso":
+                return "bg-blue-50 text-blue-700 border-blue-200";
+            case "Con resultado":
+                return "bg-purple-50 text-purple-700 border-purple-200";
+            case "Informada":
+                return "bg-emerald-50 text-emerald-700 border-emerald-200";
+            default:
+                return "bg-slate-50 text-slate-700 border-slate-200";
+        }
+    };
 
     return (
         <PortalShell
@@ -258,6 +341,87 @@ Servicio de Admisión y Gestión - Educa360`;
                                                                 Cancelar
                                                             </button>
                                                         </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </Tarjeta>
+
+                <Tarjeta
+                    titulo="Control Administrativo de Solicitudes de Prueba"
+                    subtitulo="Seguimiento operativo de estados (contenido clínico restringido a personal sanitario)"
+                >
+                    <div className="overflow-x-auto pt-2">
+                        {solicitudesPruebas.length === 0 ? (
+                            <p className="text-xs text-slate-500 py-6 text-center">
+                                No hay solicitudes de pruebas registradas en el sistema actualmente
+                            </p>
+                        ) : (
+                            <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr className="border-b border-slate-200 text-slate-400 font-mono text-[10px] uppercase tracking-wider">
+                                        <th className="pb-3 font-semibold">Paciente</th>
+                                        <th className="pb-3 font-semibold">Prueba / Especialidad</th>
+                                        <th className="pb-3 font-semibold">Fecha</th>
+                                        <th className="pb-3 font-semibold">Estado</th>
+                                        <th className="pb-3 font-semibold text-right">Gestión Operativa</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {solicitudesPruebas.map((pruebaRaw) => {
+                                        const prueba = obtenerVistaAdministracionPrueba(pruebaRaw, "admin-general");
+                                        const inicialPaciente = (prueba.pacienteEmail || "P").charAt(0).toUpperCase();
+                                        const accionesPermitidas = TRANSICIONES_ADMIN_PRUEBA[prueba.estado] || [];
+
+                                        return (
+                                            <tr key={prueba.id} className="hover:bg-slate-50/80 transition">
+                                                <td className="py-3.5 pr-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-xl bg-teal-50/80 border border-teal-200/80 text-teal-800 font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                                            {inicialPaciente}
+                                                        </div>
+                                                        <span className="font-bold text-slate-900">
+                                                            {prueba.pacienteEmail}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3.5 pr-3 text-slate-600">
+                                                    <div className="font-semibold text-slate-900">{prueba.tipoPrueba}</div>
+                                                    <div className="text-[11px] text-slate-500">{prueba.especialidad}</div>
+                                                </td>
+                                                <td className="py-3.5 pr-3 font-mono text-slate-600 whitespace-nowrap">
+                                                    {prueba.fechaSolicitud}
+                                                </td>
+                                                <td className="py-3.5 pr-3">
+                                                    <span
+                                                        className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wide border ${badgeEstadoPruebaAdmin(
+                                                            prueba.estado
+                                                        )}`}
+                                                    >
+                                                        {prueba.estado}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 text-right whitespace-nowrap">
+                                                    {accionesPermitidas.length === 0 ? (
+                                                        <span className="text-[11px] font-mono text-slate-400">
+                                                            Solo lectura de estado
+                                                        </span>
+                                                    ) : (
+                                                        accionesPermitidas.map((sigEstado) => (
+                                                            <button
+                                                                key={sigEstado}
+                                                                type="button"
+                                                                onClick={() => avanzarEstadoPruebaAdmin(prueba.id, sigEstado)}
+                                                                className="px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold text-[11px] rounded-lg shadow-xs transition cursor-pointer"
+                                                            >
+                                                                Marcar: {sigEstado}
+                                                            </button>
+                                                        ))
                                                     )}
                                                 </td>
                                             </tr>

@@ -13,6 +13,7 @@ export default function PortalShell({
 }) {
     const pathname = usePathname();
     const [menuAbierto, setMenuAbierto] = useState(true);
+    const [medicoMenuAbierto, setMedicoMenuAbierto] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const emailLower = (usuarioEmail || "").toLowerCase();
@@ -138,79 +139,14 @@ export default function PortalShell({
                                     <a
                                         href="/admin/disponibilidad"
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
-                                            pathname === "/admin/disponibilidad"
-                                                ? "bg-teal-600/20 text-teal-300 border border-teal-500/30"
-                                                : "text-slate-300 hover:bg-slate-800/60 hover:text-white"
-                                        }`}
-                                    >
-                                        <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <span>Disponibilidad y Sede</span>
-                                    </a>
-                                </div>
-
-                                <div className="pt-2 border-t border-slate-800/80 space-y-1">
-                                    <span className="px-3 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">
-                                        Supervisión de Portales
-                                    </span>
-                                    <a href="/medico/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition">
-                                        <span>• Portal Médico (Consultas)</span>
-                                    </a>
-                                    <a href="/paciente/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition">
-                                        <span>• Portal Paciente (Historial)</span>
-                                    </a>
-                                    <a href="/editor/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition">
-                                        <span>• Gestión Documental (Editor)</span>
-                                    </a>
-                                    <a href="/alumno/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition">
-                                        <span>• Formación Clínica (Alumno)</span>
-                                    </a>
-                                </div>
-                            </div>
-                        )}
-
-                        {esAlumno && !esAdmin && (
-                            <div className="space-y-1 pt-1">
-                                <button
-                                    onClick={() => setMenuAbierto(!menuAbierto)}
-                                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer"
-                                >
-                                    <div className="flex items-center space-x-3">
-                                        <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                        </svg>
-                                        <span>Formación Clínica</span>
-                                    </div>
-                                    <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${ pathname === "/admin/disponibilidad" ? "bg-teal-600/20 text-teal-300 border border-teal-500/30" : "text-slate-300 hover:bg-slate-800/60 hover:text-white" }`} > <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /> </svg> <span>Disponibilidad y Sede</span> </a> </div>  <div className="pt-2 border-t border-slate-800/80 space-y-1"> <span className="px-3 text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold"> Supervisión de Portales </span> <a href="/medico/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition"> <span>• Portal Médico (Consultas)</span> </a> <a href="/medico/solicitudes" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition"> <span>• Solicitudes de Pruebas (Médico)</span> </a> <a href="/paciente/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition"> <span>• Portal Paciente (Historial)</span> </a> <a href="/editor/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition"> <span>• Gestión Documental (Editor)</span> </a> <a href="/alumno/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center space-x-3 px-3 py-2 rounded-xl text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-white transition"> <span>• Formación Clínica (Alumno)</span> </a> </div> </div> )}  {esAlumno && !esAdmin && ( <div className="space-y-1 pt-1"> <button onClick={() => setMenuAbierto(!menuAbierto)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer" > <div className="flex items-center space-x-3"> <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /> </svg> <span>Formación Clínica</span> </div> <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
 
                                 {menuAbierto && (
                                     <div className="pl-7 space-y-1 border-l border-slate-800 ml-4 my-1">
-                                        <a href="/alumno/dashboard" onClick={() => setMobileMenuOpen(false)} className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname?.includes("/alumno") ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
-                                            • Casos Clínicos de Estudio
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {esEditor && !esAdmin && (
-                            <div className="space-y-1 pt-1">
-                                <button
-                                    onClick={() => setMenuAbierto(!menuAbierto)}
-                                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer"
-                                >
-                                    <div className="flex items-center space-x-3">
-                                        <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                                        </svg>
-                                        <span>Gestión Documental</span>
-                                    </div>
-                                    <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <a href="/alumno/dashboard" onClick={() => setMobileMenuOpen(false)} className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname?.includes("/alumno") ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}> • Casos Clínicos de Estudio </a> </div> )} </div> )}  {esEditor && !esAdmin && ( <div className="space-y-1 pt-1"> <button onClick={() => setMenuAbierto(!menuAbierto)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer" > <div className="flex items-center space-x-3"> <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /> </svg> <span>Gestión Documental</span> </div> <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
@@ -227,28 +163,7 @@ export default function PortalShell({
                                         <a 
                                             href="/editor/historial" 
                                             onClick={() => setMobileMenuOpen(false)}
-                                            className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname === "/editor/historial" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}
-                                        >
-                                            • Historial de Publicaciones
-                                        </a>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {rolTipo === "paciente" && !esEditor && !esAdmin && !esMedico && !esAlumno && (
-                            <div className="space-y-1 pt-1">
-                                <button
-                                    onClick={() => setMenuAbierto(!menuAbierto)}
-                                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer"
-                                >
-                                    <div className="flex items-center space-x-3">
-                                        <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                        </svg>
-                                        <span>Portal Paciente</span>
-                                    </div>
-                                    <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            className={`block py-2 px-3 rounded-lg text-xs transition leading-relaxed ${pathname === "/editor/historial" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`} > • Historial de Publicaciones </a> </div> )} </div> )}  {rolTipo === "paciente" && !esEditor && !esAdmin && !esMedico && !esAlumno && ( <div className="space-y-1 pt-1"> <button onClick={() => setMenuAbierto(!menuAbierto)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer" > <div className="flex items-center space-x-3"> <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /> </svg> <span>Portal Paciente</span> </div> <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${menuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </button>
@@ -264,21 +179,38 @@ export default function PortalShell({
                                         <a href="/paciente/diagnosticos" onClick={() => setMobileMenuOpen(false)} className={`block py-1.5 px-3 rounded-lg text-xs transition ${pathname === "/paciente/diagnosticos" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
                                             • Ver Diagnósticos
                                         </a>
-                                        <a href="/paciente/profile" onClick={() => setMobileMenuOpen(false)} className={`block py-1.5 px-3 rounded-lg text-xs transition ${pathname === "/paciente/profile" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}>
-                                            • Mi Perfil
+                                        <a href="/paciente/profile" onClick={() => setMobileMenuOpen(false)} className={`block py-1.5 px-3 rounded-lg text-xs transition ${pathname === "/paciente/profile" ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30" : "text-slate-400 hover:text-white hover:bg-slate-800/40"}`}> • Mi Perfil </a> </div> )} </div> )}  {esMedico && !esAdmin && ( <div className="space-y-1 pt-1"> <button onClick={() => setMedicoMenuAbierto(!medicoMenuAbierto)} className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/60 transition cursor-pointer" > <div className="flex items-center space-x-3"> <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /> </svg> <span>Portal Médico</span> </div> <svg className={`w-3.5 h-3.5 text-slate-400 transition-transform ${medicoMenuAbierto ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                {medicoMenuAbierto && (
+                                    <div className="pl-7 space-y-1 border-l border-slate-800 ml-4 my-1">
+                                        <a
+                                            href="/medico/dashboard"
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className={`block py-1.5 px-3 rounded-lg text-xs transition ${
+                                                pathname === "/medico/dashboard"
+                                                    ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30"
+                                                    : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                                            }`}
+                                        >
+                                            • Agenda y Consultas
+                                        </a>
+                                        <a
+                                            href="/medico/solicitudes"
+                                            onClick={() => setMobileMenuOpen(false)}
+                                            className={`block py-1.5 px-3 rounded-lg text-xs transition ${
+                                                pathname === "/medico/solicitudes"
+                                                    ? "bg-teal-600/20 text-teal-300 font-semibold border border-teal-500/30"
+                                                    : "text-slate-400 hover:text-white hover:bg-slate-800/40"
+                                            }`}
+                                        >
+                                            • Solicitudes de Pruebas
                                         </a>
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        {esMedico && !esAdmin && (
-                            <a href="/medico/dashboard" onClick={() => setMobileMenuOpen(false)} className={`flex items-center space-x-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${pathname?.includes("/medico") ? "bg-teal-600/20 text-teal-300 border border-teal-500/30" : "text-slate-300 hover:bg-slate-800/60 hover:text-white"}`}>
-                                <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                </svg>
-                                <span>Portal Médico</span>
-                            </a>
                         )}
                     </nav>
                 </div>

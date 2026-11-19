@@ -25,16 +25,22 @@ export default function MedicoDashboardPage() {
     const [textosDiagnostico, setTextosDiagnostico] = useState({});
     const [textosTratamiento, setTextosTratamiento] = useState({});
 
+    const [solicitudesPruebas, setSolicitudesPruebas] = useState([]);
+    const [nuevaPruebaPorCita, setNuevaPruebaPorCita] = useState({});
+
     useEffect(() => {
         const timer = setTimeout(() => setLoading(false), 800);
 
         try {
             const guardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
             setCitas(guardadas);
-            
+
+            const pruebasGuardadas = JSON.parse(localStorage.getItem("solicitudes_pruebas_educa360") || "[]");
+            setSolicitudesPruebas(pruebasGuardadas);
+
             const borradoresDiag = {};
             const borradoresTrat = {};
-            guardadas.forEach(c => {
+            guardadas.forEach((c) => {
                 const borradorDiag = localStorage.getItem(`borrador_diag_${c.id}`);
                 const borradorTrat = localStorage.getItem(`borrador_trat_${c.id}`);
                 if (borradorDiag) borradoresDiag[c.id] = borradorDiag;
@@ -44,6 +50,7 @@ export default function MedicoDashboardPage() {
             setTextosTratamiento(borradoresTrat);
         } catch {
             setCitas([]);
+            setSolicitudesPruebas([]);
         }
 
         if (!authLoading) {
@@ -54,8 +61,61 @@ export default function MedicoDashboardPage() {
         return () => clearTimeout(timer);
     }, [authLoading]);
 
+    const crearSolicitudPrueba = (cita) => {
+        const form = nuevaPruebaPorCita[cita.id] || { tipoPrueba: "", indicaciones: "" };
+        const tipoPrueba = (form.tipoPrueba || "").trim();
+        const indicaciones = (form.indicaciones || "").trim();
+
+        if (!tipoPrueba || !indicaciones) {
+            setMensaje({
+                texto: "Indique el tipo de prueba y las indicaciones clínicas para crear la solicitud.",
+                tipo: "error",
+            });
+            window.scrollTo({ top: 0, behavior: "smooth" });
+            setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
+            return;
+        }
+
+        const nuevaSolicitud = {
+            id: Date.now(),
+            citaId: cita.id,
+            pacienteEmail: cita.userEmail,
+            medicoEmail: user?.email || cita.medico || "medico@educa360.test",
+            especialidad: cita.especialidad,
+            fechaSolicitud: new Date().toISOString().split("T")[0],
+            tipoPrueba,
+            indicaciones,
+            resultado: "",
+            estado: "Solicitada",
+        };
+
+        const actualizadas = [nuevaSolicitud, ...solicitudesPruebas];
+        setSolicitudesPruebas(actualizadas);
+        localStorage.setItem("solicitudes_pruebas_educa360", JSON.stringify(actualizadas));
+
+        setNuevaPruebaPorCita((prev) => ({
+            ...prev,
+            [cita.id]: { tipoPrueba: "", indicaciones: "" },
+        }));
+
+        setCitasDiagnosticando((prev) => ({ ...prev, [cita.id]: false }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
+        registrarLogSistema(
+            "PRUEBA_SOLICITADA",
+            user?.email || "medico@educa360.test",
+            `Solicitud de prueba "${tipoPrueba}" creada para ${cita.userEmail} (Estado: Solicitada).`
+        );
+
+        setMensaje({
+            texto: `Solicitud de prueba "${tipoPrueba}" registrada en estado Solicitada.`,
+            tipo: "success",
+        });
+        setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
+    };
+
     const actualizarEstadoCita = (citaId, nuevoEstado) => {
-        const actualizadas = citas.map((c) => c.id === citaId ? { ...c, estado: nuevoEstado } : c);
+        const actualizadas = citas.map((c) => (c.id === citaId ? { ...c, estado: nuevoEstado } : c));
         setCitas(actualizadas);
         localStorage.setItem("citas_educa360", JSON.stringify(actualizadas));
 
@@ -65,18 +125,25 @@ export default function MedicoDashboardPage() {
         }
 
         const esIncomparecencia = nuevoEstado === "No presentado";
-        registrarLogSistema("VALIDACIÓN", user?.email || "medico@educa360.test", `Consulta marcada como "${nuevoEstado}". El paciente no se ha presentado.`);
-        
-        setMensaje({ 
-            texto: esIncomparecencia ? "El paciente no se ha presentado. La cita ha sido apartada de la agenda activa." : `La cita ha sido marcada como: ${nuevoEstado}`, 
-            tipo: "error" 
+        registrarLogSistema(
+            "VALIDACIÓN",
+            user?.email || "medico@educa360.test",
+            `Consulta marcada como "${nuevoEstado}".${esIncomparecencia ? " El paciente no se ha presentado." : ""}`
+        );
+
+        setMensaje({
+            texto: esIncomparecencia
+                ? "El paciente no se ha presentado. La cita ha sido apartada de la agenda activa."
+                : `La cita ha sido marcada como: ${nuevoEstado}`,
+            tipo: esIncomparecencia || nuevoEstado === "Cancelada" ? "error" : "success",
         });
-        
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
     const toggleDesplegableDiagnostico = (citaId) => {
-        setCitasDiagnosticando(prev => ({ ...prev, [citaId]: !prev[citaId] }));
+        setCitasDiagnosticando((prev) => ({ ...prev, [citaId]: !prev[citaId] }));
     };
 
     const guardarBorrador = (cita) => {
@@ -86,11 +153,16 @@ export default function MedicoDashboardPage() {
         localStorage.setItem(`borrador_diag_${cita.id}`, diag);
         localStorage.setItem(`borrador_trat_${cita.id}`, trat);
 
-        registrarLogSistema("BORRADOR", user?.email || "medico@educa360.test", `Acto clínico guardado en borrador para ${cita.userEmail}`);
+        registrarLogSistema(
+            "BORRADOR",
+            user?.email || "medico@educa360.test",
+            `Acto clínico guardado en borrador para ${cita.userEmail}`
+        );
         setMensaje({ texto: "Borrador del acto clínico guardado correctamente (Privado).", tipo: "success" });
-        
-        setCitasDiagnosticando(prev => ({ ...prev, [cita.id]: false }));
-        
+
+        setCitasDiagnosticando((prev) => ({ ...prev, [cita.id]: false }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
@@ -101,11 +173,11 @@ export default function MedicoDashboardPage() {
 
         const actualizadas = citas.map((c) => {
             if (c.id === cita.id) {
-                return { 
-                    ...c, 
+                return {
+                    ...c,
                     diagnostico: diag.trim(),
                     tratamiento: trat.trim(),
-                    estado: "Completada" 
+                    estado: "Completada",
                 };
             }
             return c;
@@ -123,14 +195,19 @@ export default function MedicoDashboardPage() {
             especialidad: cita.especialidad,
             medico: user?.email || cita.medico,
             diagnostico: diag.trim(),
-            tratamiento: trat.trim()
+            tratamiento: trat.trim(),
         };
         localStorage.setItem(`diagnosticos_${cita.userEmail}`, JSON.stringify([nuevoRegistro, ...historialesPaciente]));
 
-        registrarLogSistema("DIAGNÓSTICO", user?.email || "medico@educa360.test", `Diagnóstico firmado y publicado para ${cita.userEmail}`);
+        registrarLogSistema(
+            "DIAGNÓSTICO",
+            user?.email || "medico@educa360.test",
+            `Diagnóstico firmado y publicado para ${cita.userEmail}`
+        );
         setMensaje({ texto: "Acto clínico firmado y publicado correctamente en el expediente del paciente.", tipo: "success" });
 
-        setCitasDiagnosticando(prev => ({ ...prev, [cita.id]: false }));
+        setCitasDiagnosticando((prev) => ({ ...prev, [cita.id]: false }));
+        window.scrollTo({ top: 0, behavior: "smooth" });
         setTimeout(() => setMensaje({ texto: "", tipo: "success" }), 4000);
     };
 
@@ -152,7 +229,11 @@ export default function MedicoDashboardPage() {
     };
 
     if (loading || authLoading) {
-        return <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]"><EstadoCargando mensaje="Cargando panel médico..." /></div>;
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#f8fafc]">
+                <EstadoCargando mensaje="Cargando panel médico..." />
+            </div>
+        );
     }
 
     const emailMedicoActual = (user?.email || "").toLowerCase();
@@ -163,28 +244,51 @@ export default function MedicoDashboardPage() {
     });
 
     return (
-        <PortalShell rolLabel="Portal Médico" rolTipo="medico" usuarioNombre="Personal Sanitario" usuarioEmail={user?.email || "medico@educa360.test"} onLogout={handleCerrarSesion}>
+        <PortalShell
+            rolLabel="Portal Médico"
+            rolTipo="medico"
+            usuarioNombre="Personal Sanitario"
+            usuarioEmail={user?.email || "medico@educa360.test"}
+            onLogout={handleCerrarSesion}
+        >
             <div className="space-y-6 max-w-7xl mx-auto pb-10">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs">
                     <div>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">Área Clínica Asistencial</span>
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 pt-1">Panel de Consultas y Pacientes</h1>
-                        <p className="text-xs text-slate-500">Gestión de agenda activa, actos clínicos en borrador y emisión de diagnósticos certificados.</p>
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-mono font-bold uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+                            Área Clínica Asistencial
+                        </span>
+                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 pt-1">
+                            Panel de Consultas y Pacientes
+                        </h1>
+                        <p className="text-xs text-slate-500">
+                            Gestión de agenda activa, actos clínicos en borrador y emisión de diagnósticos certificados.
+                        </p>
                     </div>
-                    <Link href="/medico/profile" className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer">
+                    <Link
+                        href="/medico/profile"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
+                    >
                         Mi Ficha Profesional
                     </Link>
                 </div>
 
                 {mensaje.texto && (
-                    <div className={`p-4 rounded-2xl border text-xs font-medium flex items-center space-x-3 shadow-xs ${mensaje.tipo === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"}`}>
+                    <div
+                        className={`p-4 rounded-2xl border text-xs font-medium flex items-center space-x-3 shadow-xs ${
+                            mensaje.tipo === "success"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                                : "bg-rose-50 border-rose-200 text-rose-800"
+                        }`}
+                    >
                         <span>{mensaje.texto}</span>
                     </div>
                 )}
 
                 <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                     <div className="p-6 border-b border-slate-100">
-                        <h2 className="text-base font-bold text-slate-900 tracking-tight">Agenda Activa · Consultas Confirmadas</h2>
+                        <h2 className="text-base font-bold text-slate-900 tracking-tight">
+                            Agenda Activa · Consultas Confirmadas
+                        </h2>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -209,6 +313,10 @@ export default function MedicoDashboardPage() {
                                         const estaDiagnosticando = citasDiagnosticando[cita.id];
                                         const tieneBorrador = Boolean(localStorage.getItem(`borrador_diag_${cita.id}`));
                                         const inicialPaciente = (cita.userEmail || "P").charAt(0).toUpperCase();
+                                        const formPrueba = nuevaPruebaPorCita[cita.id] || {
+                                            tipoPrueba: "",
+                                            indicaciones: "",
+                                        };
 
                                         return (
                                             <Fragment key={cita.id}>
@@ -238,13 +346,24 @@ export default function MedicoDashboardPage() {
                                                     </td>
                                                     <td className="py-4 px-6 text-right">
                                                         <div className="flex items-center justify-end gap-2 flex-wrap">
-                                                            <button onClick={() => toggleDesplegableDiagnostico(cita.id)} className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer">
+                                                            <button
+                                                                onClick={() => toggleDesplegableDiagnostico(cita.id)}
+                                                                className="px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition cursor-pointer"
+                                                            >
                                                                 {estaDiagnosticando ? "Cerrar Panel" : "Atender"}
                                                             </button>
-                                                            <button onClick={() => actualizarEstadoCita(cita.id, "No presentado")} className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer flex items-center gap-1">
+                                                            <button
+                                                                onClick={() => actualizarEstadoCita(cita.id, "No presentado")}
+                                                                className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition cursor-pointer flex items-center gap-1"
+                                                            >
                                                                 <span>✕ No asistió</span>
                                                             </button>
-                                                            <button onClick={() => abrirModalAnular(cita)} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer">Anular</button>
+                                                            <button
+                                                                onClick={() => abrirModalAnular(cita)}
+                                                                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition cursor-pointer"
+                                                            >
+                                                                Anular
+                                                            </button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -252,38 +371,126 @@ export default function MedicoDashboardPage() {
                                                 {estaDiagnosticando && (
                                                     <tr className="bg-teal-50/40 border-b border-teal-100">
                                                         <td colSpan={6} className="p-5 px-6">
-                                                            <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm space-y-4">
-                                                                <span className="text-xs font-bold text-teal-900 block">Registro de Acto Clínico (Borrador Privado)</span>
-                                                                
+                                                            <div className="bg-white p-5 rounded-2xl border border-teal-200 shadow-sm space-y-5">
+                                                                <span className="text-xs font-bold text-teal-900 block">
+                                                                    Registro de Acto Clínico (Borrador Privado)
+                                                                </span>
+
                                                                 <div className="space-y-1">
-                                                                    <label className="text-[11px] font-bold text-slate-700">Motivo, Exploración y Valoración Clínica</label>
+                                                                    <label className="text-[11px] font-bold text-slate-700">
+                                                                        Motivo, Exploración y Valoración Clínica
+                                                                    </label>
                                                                     <textarea
                                                                         rows={3}
                                                                         placeholder="Escriba la exploración y valoración..."
                                                                         value={textosDiagnostico[cita.id] || ""}
-                                                                        onChange={(e) => setTextosDiagnostico({ ...textosDiagnostico, [cita.id]: e.target.value })}
+                                                                        onChange={(e) =>
+                                                                            setTextosDiagnostico({
+                                                                                ...textosDiagnostico,
+                                                                                [cita.id]: e.target.value,
+                                                                            })
+                                                                        }
                                                                         className="w-full p-3 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600"
                                                                     />
                                                                 </div>
 
                                                                 <div className="space-y-1">
-                                                                    <label className="text-[11px] font-bold text-slate-700">Plan / Tratamiento Prescrito</label>
+                                                                    <label className="text-[11px] font-bold text-slate-700">
+                                                                        Plan / Tratamiento Prescrito
+                                                                    </label>
                                                                     <input
                                                                         type="text"
                                                                         placeholder="Ej: Paracetamol 1g cada 8h durante 5 días"
                                                                         value={textosTratamiento[cita.id] || ""}
-                                                                        onChange={(e) => setTextosTratamiento({ ...textosTratamiento, [cita.id]: e.target.value })}
+                                                                        onChange={(e) =>
+                                                                            setTextosTratamiento({
+                                                                                ...textosTratamiento,
+                                                                                [cita.id]: e.target.value,
+                                                                            })
+                                                                        }
                                                                         className="w-full p-3 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600"
                                                                     />
                                                                 </div>
 
+                                                                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider font-mono">
+                                                                            Solicitar Prueba Complementaria desde Acto Clínico
+                                                                        </span>
+                                                                        <span className="text-[10px] text-slate-500 font-mono">
+                                                                            Estado inicial: Solicitada
+                                                                        </span>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[11px] font-semibold text-slate-700">
+                                                                                Tipo de prueba
+                                                                            </label>
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Ej: Analítica sanguínea completa, Radiografía de tórax..."
+                                                                                value={formPrueba.tipoPrueba}
+                                                                                onChange={(e) =>
+                                                                                    setNuevaPruebaPorCita((prev) => ({
+                                                                                        ...prev,
+                                                                                        [cita.id]: {
+                                                                                            ...formPrueba,
+                                                                                            tipoPrueba: e.target.value,
+                                                                                        },
+                                                                                    }))
+                                                                                }
+                                                                                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="space-y-1">
+                                                                            <label className="text-[11px] font-semibold text-slate-700">
+                                                                                Indicaciones clínicas
+                                                                            </label>
+                                                                            <input
+                                                                                type="text"
+                                                                                placeholder="Ej: En ayunas de 8h, valorar perfil hepático y PCR"
+                                                                                value={formPrueba.indicaciones}
+                                                                                onChange={(e) =>
+                                                                                    setNuevaPruebaPorCita((prev) => ({
+                                                                                        ...prev,
+                                                                                        [cita.id]: {
+                                                                                            ...formPrueba,
+                                                                                            indicaciones: e.target.value,
+                                                                                        },
+                                                                                    }))
+                                                                                }
+                                                                                className="w-full p-2.5 rounded-xl border border-slate-200 text-xs bg-white focus:outline-none focus:border-teal-600"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex justify-end">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => crearSolicitudPrueba(cita)}
+                                                                            className="px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 font-bold text-xs rounded-xl transition cursor-pointer"
+                                                                        >
+                                                                            + Registrar Solicitud de Prueba
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
                                                                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                                                    <span className="text-[11px] text-slate-500 font-mono">Los borradores solo son visibles para el profesional sanitario.</span>
+                                                                    <span className="text-[11px] text-slate-500 font-mono">
+                                                                        Los borradores solo son visibles para el profesional sanitario.
+                                                                    </span>
                                                                     <div className="flex gap-2">
-                                                                        <button onClick={() => guardarBorrador(cita)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200 cursor-pointer">
+                                                                        <button
+                                                                            onClick={() => guardarBorrador(cita)}
+                                                                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition border border-slate-200 cursor-pointer"
+                                                                        >
                                                                             Guardar Borrador
                                                                         </button>
-                                                                        <button onClick={() => guardarDiagnostico(cita)} className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition shadow-md cursor-pointer">
+                                                                        <button
+                                                                            onClick={() => guardarDiagnostico(cita)}
+                                                                            className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition shadow-md cursor-pointer"
+                                                                        >
                                                                             Firmar y Publicar al Paciente
                                                                         </button>
                                                                     </div>
@@ -304,10 +511,13 @@ export default function MedicoDashboardPage() {
                 {modalAnularAbierto && citaParaAnular && (
                     <div className="fixed inset-0 bg-[#090d16]/75 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
                         <div className="bg-white rounded-[28px] shadow-2xl border border-rose-100 max-w-[440px] w-full p-8 sm:p-10 space-y-6 text-center relative z-10">
-                            
                             <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border shadow-sm shrink-0 bg-rose-50 text-rose-600 border-rose-200">
                                 <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                                    />
                                 </svg>
                             </div>
 
@@ -319,7 +529,11 @@ export default function MedicoDashboardPage() {
                                     ¿Desea anular esta consulta médica confirmada?
                                 </h3>
                                 <p className="text-xs text-slate-500 leading-relaxed px-2">
-                                    Está a punto de cancelar la cita del paciente <strong className="text-slate-800">{citaParaAnular.userEmail}</strong> ({citaParaAnular.especialidad}) programada para el <strong className="text-slate-800">{citaParaAnular.fecha}</strong> a las <strong className="text-slate-800">{citaParaAnular.hora}</strong>.
+                                    Está a punto de cancelar la cita del paciente{" "}
+                                    <strong className="text-slate-800">{citaParaAnular.userEmail}</strong> (
+                                    {citaParaAnular.especialidad}) programada para el{" "}
+                                    <strong className="text-slate-800">{citaParaAnular.fecha}</strong> a las{" "}
+                                    <strong className="text-slate-800">{citaParaAnular.hora}</strong>.
                                 </p>
                                 <p className="text-[11px] text-rose-600/90 font-medium pt-1">
                                     Esta acción quedará registrada en la auditoría y eliminará cualquier borrador pendiente.
