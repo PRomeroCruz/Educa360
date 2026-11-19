@@ -31,11 +31,17 @@ const IDS = {
     sedeNorte: "seed-sede-norte",
     sedeSur: "seed-sede-sur",
     sedeCentro: "seed-sede-centro",
+    sedeOeste: "seed-sede-oeste",
 
     servicioMedicinaGeneral: "seed-servicio-mg",
     servicioPediatria: "seed-servicio-ped",
     servicioFisioterapia: "seed-servicio-fisio",
     servicioOdontologia: "seed-servicio-odon",
+    servicioCardiologia: "seed-servicio-card",
+    servicioDermatologia: "seed-servicio-derm",
+    servicioGinecologia: "seed-servicio-gine",
+    servicioTraumatologia: "seed-servicio-traum",
+    servicioOftalmologia: "seed-servicio-oft",
 
     profesionalLaura: "seed-prof-laura",
     profesionalElio: "seed-prof-elio",
@@ -73,6 +79,29 @@ const IDS = {
     auditoriaLoginAdmin: "seed-audit-login-admin",
     auditoriaLoginPaciente: "seed-audit-login-paciente",
     auditoriaCitaCreada: "seed-audit-cita-creada",
+    auditoriaAccesoExcepcional1: "seed-audit-acceso-excepcional-1",
+
+    accesoExcepcional1: "seed-acceso-excepcional-1",
+    accesoExcepcional2: "seed-acceso-excepcional-2",
+
+    dispMedicoCentro: "disp-medico-centro",
+    dispMedico1Centro: "disp-medico-1-centro",
+    dispMedico2Centro: "disp-medico-2-centro",
+    dispMedico3Norte: "disp-medico-3-norte",
+    dispMedico4Oeste: "disp-medico-4-oeste",
+    dispMedico5Centro: "disp-medico-5-centro",
+    dispMedico6Norte: "disp-medico-6-norte",
+    dispMedico7Oeste: "disp-medico-7-oeste",
+    dispElioSur: "disp-elio-sur",
+
+    bloqueoVacaciones1: "seed-bloqueo-vacaciones-1",
+    bloqueoVacaciones2: "seed-bloqueo-vacaciones-2",
+    bloqueoVacaciones3: "seed-bloqueo-vacaciones-3",
+    bloqueoFestivo1: "seed-bloqueo-festivo-1",
+    bloqueoFestivo2: "seed-bloqueo-festivo-2",
+    bloqueoFestivo3: "seed-bloqueo-festivo-3",
+    bloqueoCongreso1: "seed-bloqueo-congreso-1",
+    bloqueoMantenimiento1: "seed-bloqueo-mantenimiento-1",
 };
 
 const now = new Date();
@@ -99,7 +128,7 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Medicina General",
             sede: "Centro Sanitario Centro · Madrid",
             notasAdministrativas: "Horario de 09:00 a 13:00 y de 16:00 a 21:00. Reunión clínica los martes a las 14:00.",
-        }
+        },
     },
     {
         email: "medico2@educa360.test",
@@ -116,7 +145,7 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Cardiología",
             sede: "Centro Sanitario Centro · Madrid",
             notasAdministrativas: "Consultas de cardiología y pruebas de esfuerzo los lunes y jueves.",
-        }
+        },
     },
     {
         email: "medico3@educa360.test",
@@ -128,12 +157,12 @@ export const PROFESIONALES_MEDICOS = [
             disponible: true,
         },
         interno: {
-            numeroColegiado: "282812341",
-            telefonoPrivado: "+34600111002",
-            especialidad: "Medicina General",
-            sede: "Centro Sanitario Centro · Madrid",
-            notasAdministrativas: "Horario de 09:00 a 13:00 y de 16:00 a 21:00. Reunión clínica los martes.",
-        }
+            numeroColegiado: "282812343",
+            telefonoPrivado: "+34600111012",
+            especialidad: "Dermatología",
+            sede: "Sede Norte · Madrid",
+            notasAdministrativas: "Horario de mañana y tarde de lunes a jueves; viernes solo mañana.",
+        },
     },
     {
         email: "medico4@educa360.test",
@@ -150,7 +179,7 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Pediatría",
             sede: "Sede Oeste · Madrid",
             notasAdministrativas: "Atención pediátrica continuada en turno de mañana.",
-        }
+        },
     },
     {
         email: "medico5@educa360.test",
@@ -167,7 +196,7 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Ginecología",
             sede: "Centro Sanitario Centro · Madrid",
             notasAdministrativas: "Coordinación de ecografía obstétrica los viernes.",
-        }
+        },
     },
     {
         email: "medico6@educa360.test",
@@ -184,7 +213,7 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Traumatología",
             sede: "Sede Norte · Madrid",
             notasAdministrativas: "Quirófano programado martes y viernes por la tarde.",
-        }
+        },
     },
     {
         email: "medico7@educa360.test",
@@ -201,8 +230,8 @@ export const PROFESIONALES_MEDICOS = [
             especialidad: "Oftalmología",
             sede: "Sede Oeste · Madrid",
             notasAdministrativas: "Consulta monográfica de glaucoma los miércoles.",
-        }
-    }
+        },
+    },
 ];
 
 export async function seedProfesionalesMedicos(services) {
@@ -223,54 +252,420 @@ export async function seedProfesionalesMedicos(services) {
 export async function seedDisponibilidadProfesionales(services) {
     const { firestoreAdmin } = services;
 
+    const horariosCompletosLunesAViernes = [
+        {
+            dia: "Lunes",
+            franjas: [
+                { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 },
+            ],
+        },
+        {
+            dia: "Martes",
+            franjas: [
+                { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 },
+            ],
+        },
+        {
+            dia: "Miércoles",
+            franjas: [
+                { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 },
+            ],
+        },
+        {
+            dia: "Jueves",
+            franjas: [
+                { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+                { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 },
+            ],
+        },
+        {
+            dia: "Viernes",
+            franjas: [
+                { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
+            ],
+        },
+    ];
+
     const disponibilidades = [
         {
-            id: "disp-medico-centro",
+            id: IDS.dispMedicoCentro,
             profesionalId: "medico",
+            sedeId: IDS.sedeCentro,
+            horarios: horariosCompletosLunesAViernes,
+        },
+        {
+            id: IDS.dispMedico1Centro,
+            profesionalId: "medico-1",
+            sedeId: IDS.sedeCentro,
+            horarios: horariosCompletosLunesAViernes,
+        },
+        {
+            id: IDS.dispMedico2Centro,
+            profesionalId: "medico2",
             sedeId: IDS.sedeCentro,
             horarios: [
                 {
                     dia: "Lunes",
                     franjas: [
-                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
-                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
-                    ]
+                        { inicio: "08:30", fin: "14:00", duracionCitaMinutos: 30 },
+                        { inicio: "15:30", fin: "19:30", duracionCitaMinutos: 30 },
+                    ],
                 },
                 {
                     dia: "Martes",
                     franjas: [
-                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
-                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
-                    ]
+                        { inicio: "08:30", fin: "14:00", duracionCitaMinutos: 30 },
+                    ],
                 },
                 {
                     dia: "Miércoles",
                     franjas: [
-                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
-                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
-                    ]
+                        { inicio: "10:00", fin: "14:00", duracionCitaMinutos: 30 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 30 },
+                    ],
                 },
                 {
                     dia: "Jueves",
                     franjas: [
-                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 },
-                        { inicio: "16:00", fin: "21:00", duracionCitaMinutos: 20 }
-                    ]
+                        { inicio: "08:30", fin: "14:00", duracionCitaMinutos: 30 },
+                        { inicio: "15:30", fin: "19:30", duracionCitaMinutos: 30 },
+                    ],
+                },
+            ],
+        },
+        {
+            id: IDS.dispMedico3Norte,
+            profesionalId: "medico3",
+            sedeId: IDS.sedeNorte,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:30", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 20 },
+                    ],
+                },
+                {
+                    dia: "Martes",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:30", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 20 },
+                    ],
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:30", duracionCitaMinutos: 20 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 20 },
+                    ],
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:30", duracionCitaMinutos: 20 },
+                    ],
                 },
                 {
                     dia: "Viernes",
                     franjas: [
-                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 20 }
-                    ]
-                }
-            ]
-        }
+                        { inicio: "09:00", fin: "14:00", duracionCitaMinutos: 20 },
+                    ],
+                },
+            ],
+        },
+        {
+            id: IDS.dispMedico4Oeste,
+            profesionalId: "medico4",
+            sedeId: IDS.sedeOeste,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [{ inicio: "08:00", fin: "15:00", duracionCitaMinutos: 15 }],
+                },
+                {
+                    dia: "Martes",
+                    franjas: [{ inicio: "08:00", fin: "15:00", duracionCitaMinutos: 15 }],
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [{ inicio: "08:00", fin: "15:00", duracionCitaMinutos: 15 }],
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [{ inicio: "08:00", fin: "15:00", duracionCitaMinutos: 15 }],
+                },
+                {
+                    dia: "Viernes",
+                    franjas: [{ inicio: "08:00", fin: "14:00", duracionCitaMinutos: 15 }],
+                },
+            ],
+        },
+        {
+            id: IDS.dispMedico5Centro,
+            profesionalId: "medico5",
+            sedeId: IDS.sedeCentro,
+            horarios: [
+                {
+                    dia: "Martes",
+                    franjas: [
+                        { inicio: "09:30", fin: "13:30", duracionCitaMinutos: 30 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 30 },
+                    ],
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [
+                        { inicio: "09:30", fin: "13:30", duracionCitaMinutos: 30 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 30 },
+                    ],
+                },
+                {
+                    dia: "Viernes",
+                    franjas: [{ inicio: "09:00", fin: "14:00", duracionCitaMinutos: 30 }],
+                },
+            ],
+        },
+        {
+            id: IDS.dispMedico6Norte,
+            profesionalId: "medico6",
+            sedeId: IDS.sedeNorte,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [{ inicio: "09:00", fin: "14:00", duracionCitaMinutos: 25 }],
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [
+                        { inicio: "09:00", fin: "13:00", duracionCitaMinutos: 25 },
+                        { inicio: "16:00", fin: "20:00", duracionCitaMinutos: 25 },
+                    ],
+                },
+                {
+                    dia: "Viernes",
+                    franjas: [{ inicio: "08:30", fin: "13:30", duracionCitaMinutos: 25 }],
+                },
+            ],
+        },
+        {
+            id: IDS.dispMedico7Oeste,
+            profesionalId: "medico7",
+            sedeId: IDS.sedeOeste,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [{ inicio: "10:00", fin: "14:00", duracionCitaMinutos: 20 }],
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [
+                        { inicio: "10:00", fin: "14:00", duracionCitaMinutos: 20 },
+                        { inicio: "16:30", fin: "20:30", duracionCitaMinutos: 20 },
+                    ],
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [{ inicio: "10:00", fin: "14:00", duracionCitaMinutos: 20 }],
+                },
+            ],
+        },
+        {
+            id: IDS.dispElioSur,
+            profesionalId: "elio.vega",
+            sedeId: IDS.sedeSur,
+            horarios: [
+                {
+                    dia: "Lunes",
+                    franjas: [
+                        { inicio: "09:00", fin: "14:00", duracionCitaMinutos: 40 },
+                        { inicio: "15:00", fin: "19:00", duracionCitaMinutos: 40 },
+                    ],
+                },
+                {
+                    dia: "Martes",
+                    franjas: [
+                        { inicio: "09:00", fin: "14:00", duracionCitaMinutos: 40 },
+                        { inicio: "15:00", fin: "19:00", duracionCitaMinutos: 40 },
+                    ],
+                },
+                {
+                    dia: "Miércoles",
+                    franjas: [{ inicio: "09:00", fin: "14:00", duracionCitaMinutos: 40 }],
+                },
+                {
+                    dia: "Jueves",
+                    franjas: [
+                        { inicio: "09:00", fin: "14:00", duracionCitaMinutos: 40 },
+                        { inicio: "15:00", fin: "19:00", duracionCitaMinutos: 40 },
+                    ],
+                },
+                {
+                    dia: "Viernes",
+                    franjas: [{ inicio: "09:00", fin: "13:30", duracionCitaMinutos: 40 }],
+                },
+            ],
+        },
     ];
 
     for (const disp of disponibilidades) {
         await firestoreAdmin.collection("disponibilidad_sedes").doc(disp.id).set(disp, { merge: true });
     }
-    console.info("[seed] Plantillas de disponibilidad por profesional y sede cargadas correctamente.");
+    console.info(`[seed] ${disponibilidades.length} plantillas de disponibilidad por profesional y sede cargadas correctamente.`);
+}
+
+export async function seedAccesosExcepcionalesYBloqueos(services, { uidMedico, uidPaciente, uidAdmin }) {
+    const { firestoreAdmin } = services;
+
+    const accesosExcepcionales = [
+        {
+            id: IDS.accesoExcepcional1,
+            tipo: "ACCESO_EXCEPCIONAL",
+            excepcional: true,
+            fechaHora: offset(-1, 10),
+            fecha: offset(-1, 10).split("T")[0],
+            pacienteId: IDS.pacienteMaria,
+            paciente_uid: uidPaciente,
+            pacienteEmail: "paciente@educa360.test",
+            medicoUid: uidMedico,
+            medicoEmail: "medico@educa360.test",
+            especialidad: "Medicina General",
+            motivo: "Consulta urgente fuera de flujo por guardia clínica",
+            origen: "SEED_INICIAL",
+        },
+        {
+            id: IDS.accesoExcepcional2,
+            tipo: "ACCESO_EXCEPCIONAL",
+            excepcional: true,
+            fechaHora: offset(-3, 17),
+            fecha: offset(-3, 17).split("T")[0],
+            pacienteId: IDS.pacienteMariaJose,
+            paciente_uid: null,
+            pacienteEmail: "mariajose.ejemplo@educa360.test",
+            medicoUid: uidMedico,
+            medicoEmail: "medico@educa360.test",
+            especialidad: "Medicina General",
+            motivo: "Cobertura asistencial por ausencia temporal del facultativo asignado",
+            origen: "SEED_INICIAL",
+        },
+    ];
+
+    for (const acc of accesosExcepcionales) {
+        await firestoreAdmin.collection("accesos_excepcionales").doc(acc.id).set(acc, { merge: true });
+    }
+
+    await firestoreAdmin.collection("auditoria").doc(IDS.auditoriaAccesoExcepcional1).set(
+        {
+            id: IDS.auditoriaAccesoExcepcional1,
+            usuario_id: uidMedico,
+            paciente_id: IDS.pacienteMaria,
+            tipo_entidad: "ACCESO_EXCEPCIONAL",
+            accion: "acceso_sin_relacion_asistencial",
+            fecha: offset(-1, 10),
+            detalles:
+                '[EXCEPCIONAL] Acceso sin relación asistencial previa a paciente@educa360.test (Medicina General). Motivo: "Consulta urgente fuera de flujo por guardia clínica".',
+        },
+        { merge: true }
+    );
+
+    const bloqueosAgenda = [
+        {
+            id: IDS.bloqueoVacaciones1,
+            tipo: "VACACIONES",
+            alcance: "Profesional Concreto",
+            profesionalId: "medico-1",
+            sedeId: IDS.sedeCentro,
+            fechaInicio: offset(7, 0).split("T")[0],
+            fechaFin: offset(10, 0).split("T")[0],
+            motivo: "Vacaciones programadas de prueba",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoVacaciones2,
+            tipo: "VACACIONES",
+            alcance: "Profesional Concreto",
+            profesionalId: "medico2",
+            sedeId: IDS.sedeCentro,
+            fechaInicio: "2026-12-21",
+            fechaFin: "2026-12-31",
+            motivo: "Vacaciones de Navidad · Cardiología",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoVacaciones3,
+            tipo: "VACACIONES",
+            alcance: "Profesional Concreto",
+            profesionalId: "medico3",
+            sedeId: IDS.sedeNorte,
+            fechaInicio: "2026-12-14",
+            fechaFin: "2026-12-18",
+            motivo: "Vacaciones de invierno · Dermatología",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoFestivo1,
+            tipo: "FESTIVO",
+            alcance: "Global / Todos los Centros",
+            profesionalId: null,
+            sedeId: null,
+            fechaInicio: "2026-12-08",
+            fechaFin: "2026-12-08",
+            motivo: "Festivo nacional · Día de la Inmaculada Concepción",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoFestivo2,
+            tipo: "FESTIVO",
+            alcance: "Global / Todos los Centros",
+            profesionalId: null,
+            sedeId: null,
+            fechaInicio: "2026-12-25",
+            fechaFin: "2026-12-25",
+            motivo: "Festivo nacional · Navidad",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoFestivo3,
+            tipo: "FESTIVO",
+            alcance: "Sede Concreta",
+            profesionalId: null,
+            sedeId: IDS.sedeCentro,
+            fechaInicio: "2026-11-25",
+            fechaFin: "2026-11-25",
+            motivo: "Festivo local de sede · Centro Sanitario Centro",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoCongreso1,
+            tipo: "CONGRESO",
+            alcance: "Profesional Concreto",
+            profesionalId: "medico6",
+            sedeId: IDS.sedeNorte,
+            fechaInicio: "2026-12-02",
+            fechaFin: "2026-12-04",
+            motivo: "Congreso anual de Traumatología y Cirugía Ortopédica",
+            creadoPor: uidAdmin,
+        },
+        {
+            id: IDS.bloqueoMantenimiento1,
+            tipo: "MANTENIMIENTO",
+            alcance: "Sede Concreta",
+            profesionalId: null,
+            sedeId: IDS.sedeOeste,
+            fechaInicio: "2026-12-11",
+            fechaFin: "2026-12-11",
+            motivo: "Revisión técnica y mantenimiento de equipamiento clínico en Sede Oeste",
+            creadoPor: uidAdmin,
+        },
+    ];
+
+    for (const bloqueo of bloqueosAgenda) {
+        await firestoreAdmin.collection("bloqueos_agenda").doc(bloqueo.id).set(bloqueo, { merge: true });
+    }
+
+    console.info(`[seed] ${accesosExcepcionales.length} accesos excepcionales y ${bloqueosAgenda.length} bloqueos de agenda creados.`);
 }
 
 export async function seedTestData({ authAdmin, firestoreAdmin }) {
@@ -292,6 +687,7 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
         { id: IDS.sedeNorte, nombre: "Centro Sanitario Educa360 Norte", direccion: "Calle Ficticia, 123, 28001 Madrid", telefono: "+34900111001" },
         { id: IDS.sedeSur, nombre: "Centro Sanitario Educa360 Sur", direccion: "Avenida del Prado, 45, 28014 Madrid", telefono: "+34900111002" },
         { id: IDS.sedeCentro, nombre: "Centro Sanitario Educa360 Centro", direccion: "Plaza de la Constitución, 1, 28013 Madrid", telefono: "+34900111003" },
+        { id: IDS.sedeOeste, nombre: "Centro Sanitario Educa360 Oeste", direccion: "Paseo de la Castellana, 200, 28046 Madrid", telefono: "+34900111004" },
     ];
     for (const s of sedes) {
         await firestoreAdmin.collection("sedes").doc(s.id).set(s);
@@ -300,9 +696,14 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
 
     const servicios = [
         { id: IDS.servicioMedicinaGeneral, nombre: "Medicina General", descripcion: "Atención primaria y revisiones generales.", sedeId: IDS.sedeCentro },
-        { id: IDS.servicioPediatria, nombre: "Pediatría", descripcion: "Consulta infantil y control de crecimiento.", sedeId: IDS.sedeNorte },
+        { id: IDS.servicioPediatria, nombre: "Pediatría", descripcion: "Consulta infantil y control de crecimiento.", sedeId: IDS.sedeOeste },
         { id: IDS.servicioFisioterapia, nombre: "Fisioterapia", descripcion: "Rehabilitación y tratamiento del dolor.", sedeId: IDS.sedeSur },
         { id: IDS.servicioOdontologia, nombre: "Odontología", descripcion: "Revisión dental y limpiezas.", sedeId: IDS.sedeCentro },
+        { id: IDS.servicioCardiologia, nombre: "Cardiología", descripcion: "Diagnóstico y prevención cardiovascular.", sedeId: IDS.sedeCentro },
+        { id: IDS.servicioDermatologia, nombre: "Dermatología", descripcion: "Salud cutánea y revisiones dermatológicas.", sedeId: IDS.sedeNorte },
+        { id: IDS.servicioGinecologia, nombre: "Ginecología", descripcion: "Salud de la mujer y control ginecológico.", sedeId: IDS.sedeCentro },
+        { id: IDS.servicioTraumatologia, nombre: "Traumatología", descripcion: "Patología musculoesquelética y rehabilitación.", sedeId: IDS.sedeNorte },
+        { id: IDS.servicioOftalmologia, nombre: "Oftalmología", descripcion: "Salud visual y diagnóstico ocular.", sedeId: IDS.sedeOeste },
     ];
     for (const s of servicios) {
         await firestoreAdmin.collection("servicios").doc(s.id).set(s);
@@ -311,6 +712,7 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
 
     await seedProfesionalesMedicos(services);
     await seedDisponibilidadProfesionales(services);
+    await seedAccesosExcepcionalesYBloqueos(services, { uidMedico, uidPaciente, uidAdmin });
 
     const profesionales = [
         {
@@ -655,18 +1057,26 @@ export async function seedTestData({ authAdmin, firestoreAdmin }) {
 
         if (u.role === "paciente") {
             const { nombre, apellidos } = parseNombreCompleto(u.name);
-            await firestoreAdmin.collection("pacientes").doc(`seed-paciente-extra-${i}`).set({
-                ownerId: userUid,
-                nombre,
-                apellidos,
-                email: u.email,
-                telefono: u.phone || "+34600000000",
-                fecha_nacimiento: fechaNacimientoAleatoria(i),
-                direccion: `Calle Ficticia de Prueba ${100 + i}, 280${(10 + (i % 90)).toString().padStart(2, "0")} Madrid`,
-                contactoEmergencia: "Familiar Autorizado (600 111 222)",
-                grupoSanguineo: i % 2 === 0 ? "A+" : "0+",
-                notas: i === 0 ? "Paciente adicional sin citas previas." : `Nota de prueba ${i + 1}.`,
-            }, { merge: true });
+            await firestoreAdmin
+                .collection("pacientes")
+                .doc(`seed-paciente-extra-${i}`)
+                .set(
+                    {
+                        ownerId: userUid,
+                        nombre,
+                        apellidos,
+                        email: u.email,
+                        telefono: u.phone || "+34600000000",
+                        fecha_nacimiento: fechaNacimientoAleatoria(i),
+                        direccion: `Calle Ficticia de Prueba ${100 + i}, 280${(10 + (i % 90))
+                            .toString()
+                            .padStart(2, "0")} Madrid`,
+                        contactoEmergencia: "Familiar Autorizado (600 111 222)",
+                        grupoSanguineo: i % 2 === 0 ? "A+" : "0+",
+                        notas: i === 0 ? "Paciente adicional sin citas previas." : `Nota de prueba ${i + 1}.`,
+                    },
+                    { merge: true }
+                );
             perfilesCreados++;
         }
     }

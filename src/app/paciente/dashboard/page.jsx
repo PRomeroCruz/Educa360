@@ -12,7 +12,7 @@ import { EstadoCargando, EstadoVacio } from "@/components/EstadosUI";
 export default function PacienteDashboard() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuthGuard("paciente");
-  
+
   const [citas, setCitas] = useState([]);
   const [leidos, setLeidos] = useState({});
   const [loading, setLoading] = useState(true);
@@ -26,7 +26,7 @@ export default function PacienteDashboard() {
     try {
       const citasGuardadas = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
       setCitas(citasGuardadas);
-      
+
       if (user) {
         const leidosGuardados = JSON.parse(localStorage.getItem(`leidos_${user.uid}`) || "{}");
         setLeidos(leidosGuardados);
@@ -54,7 +54,7 @@ export default function PacienteDashboard() {
     setMensajeFeedback("");
     try {
       const citasActuales = JSON.parse(localStorage.getItem("citas_educa360") || "[]");
-      const citasModificadas = citasActuales.map(c => {
+      const citasModificadas = citasActuales.map((c) => {
         if (c.id === citaACancelar.id) {
           return { ...c, estado: "Cancelada" };
         }
@@ -65,7 +65,7 @@ export default function PacienteDashboard() {
       setCitas(citasModificadas);
       setMensajeFeedback("La cita ha sido cancelada correctamente.");
       setCitaACancelar(null);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err) {
       console.error("Error al cancelar la cita:", err);
     }
@@ -88,7 +88,9 @@ export default function PacienteDashboard() {
   });
 
   const estadoTexto = (c) => (c.estado || "").toLowerCase();
-  const confirmadas = citasOrdenadas.filter((c) => estadoTexto(c).includes("confirm") || estadoTexto(c).includes("acept"));
+  const confirmadas = citasOrdenadas.filter(
+    (c) => estadoTexto(c).includes("confirm") || estadoTexto(c).includes("acept")
+  );
   const pendientes = citasOrdenadas.filter((c) => estadoTexto(c).includes("pendiente"));
   const canceladas = citasOrdenadas.filter((c) => estadoTexto(c).includes("cancelada"));
 
@@ -98,10 +100,16 @@ export default function PacienteDashboard() {
 
   const renderizarTarjetaCita = (c) => {
     const estadoLower = estadoTexto(c);
-    const esActiva = estadoLower.includes("pendiente") || estadoLower.includes("confirm") || estadoLower.includes("acept");
+    const esActiva =
+      estadoLower.includes("pendiente") ||
+      estadoLower.includes("confirm") ||
+      estadoLower.includes("acept");
 
     return (
-      <div key={c.id} className="p-4 rounded-2xl border transition bg-white space-y-3 border-slate-200/80 shadow-2xs">
+      <div
+        key={c.id}
+        className="p-4 rounded-2xl border transition bg-white space-y-3 border-slate-200/80 shadow-2xs"
+      >
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <span className="text-xs font-bold text-slate-900">{c.especialidad}</span>
@@ -109,11 +117,15 @@ export default function PacienteDashboard() {
               Fecha: {c.fecha} a las {c.hora}
             </p>
           </div>
-          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-            estadoLower.includes("confirm") || estadoLower.includes("acept") ? "bg-teal-50 text-teal-700 border-teal-200" :
-            estadoLower.includes("cancelada") ? "bg-rose-50 text-rose-700 border-rose-200" :
-            "bg-amber-50 text-amber-700 border-amber-200"
-          }`}>
+          <span
+            className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+              estadoLower.includes("confirm") || estadoLower.includes("acept")
+                ? "bg-teal-50 text-teal-700 border-teal-200"
+                : estadoLower.includes("cancelada")
+                ? "bg-rose-50 text-rose-700 border-rose-200"
+                : "bg-amber-50 text-amber-700 border-amber-200"
+            }`}
+          >
             {c.estado || "Pendiente"}
           </span>
         </div>
@@ -149,7 +161,9 @@ export default function PacienteDashboard() {
             <span className="text-[11px] font-mono uppercase tracking-wider text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-md">
               Área de Salud y Expedientes
             </span>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">Historial Clínico de Consultas</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900 mt-2">
+              Historial Clínico de Consultas
+            </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               Supervise el estado de sus citas activas y pendientes de validación institucional.
             </p>
@@ -160,8 +174,18 @@ export default function PacienteDashboard() {
               onClick={() => router.push("/paciente/diagnosticos")}
               className="relative px-4 py-2.5 bg-[#090d16] hover:bg-slate-900 text-white rounded-xl transition border border-slate-800 shadow-sm flex items-center gap-2 cursor-pointer"
             >
-              <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              <svg
+                className="w-4 h-4 text-teal-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                />
               </svg>
               <span className="text-xs font-semibold">Notificaciones</span>
               {totalPendientesLectura > 0 && (
@@ -186,15 +210,23 @@ export default function PacienteDashboard() {
           </div>
         )}
 
-        <Tarjeta titulo="Historial y Estado de Citas Activas" subtitulo="Consultas ordenadas cronológicamente.">
+        <Tarjeta
+          titulo="Historial y Estado de Citas Activas"
+          subtitulo="Consultas ordenadas cronológicamente."
+        >
           {confirmadas.length === 0 && pendientes.length === 0 && canceladas.length === 0 ? (
-            <EstadoVacio titulo="No hay citas activas" descripcion="Utilice el botón superior para solicitar su primera cita médica." />
+            <EstadoVacio
+              titulo="No hay citas activas"
+              descripcion="Utilice el botón superior para solicitar su primera cita médica."
+            />
           ) : (
             <div className="space-y-6 pt-2">
               {confirmadas.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-teal-100 pb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">Citas Confirmadas ({confirmadas.length})</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800">
+                      Citas Confirmadas ({confirmadas.length})
+                    </span>
                     <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
                   </div>
                   <div className="space-y-3">{confirmadas.map(renderizarTarjetaCita)}</div>
@@ -203,7 +235,9 @@ export default function PacienteDashboard() {
               {pendientes.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-amber-100 pb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">Pendientes de Validación ({pendientes.length})</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                      Pendientes de Validación ({pendientes.length})
+                    </span>
                   </div>
                   <div className="space-y-3">{pendientes.map(renderizarTarjetaCita)}</div>
                 </div>
@@ -211,7 +245,9 @@ export default function PacienteDashboard() {
               {canceladas.length > 0 && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between border-b border-rose-100 pb-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">Citas Canceladas ({canceladas.length})</span>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800">
+                      Citas Canceladas ({canceladas.length})
+                    </span>
                   </div>
                   <div className="space-y-3">{canceladas.map(renderizarTarjetaCita)}</div>
                 </div>
@@ -223,10 +259,19 @@ export default function PacienteDashboard() {
         {citaACancelar && (
           <div className="fixed inset-0 bg-[#090d16]/75 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-[28px] shadow-2xl border border-rose-100 max-w-[440px] w-full p-8 sm:p-10 space-y-6 text-center relative z-10">
-              
               <div className="w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border shadow-sm shrink-0 bg-rose-50 text-rose-600 border-rose-200">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
               </div>
 
@@ -238,7 +283,10 @@ export default function PacienteDashboard() {
                   ¿Desea cancelar esta cita médica?
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed px-2">
-                  Está a punto de modificar la cita del paciente <strong className="text-slate-800">{citaACancelar.userEmail}</strong> programada para el <strong className="text-slate-800">{citaACancelar.fecha}</strong> a las <strong className="text-slate-800">{citaACancelar.hora}</strong>.
+                  Está a punto de modificar la cita del paciente{" "}
+                  <strong className="text-slate-800">{citaACancelar.userEmail}</strong> programada para el{" "}
+                  <strong className="text-slate-800">{citaACancelar.fecha}</strong> a las{" "}
+                  <strong className="text-slate-800">{citaACancelar.hora}</strong>.
                 </p>
                 <p className="text-[11px] text-rose-600/90 font-medium pt-1">
                   Esta acción quedará registrada en la auditoría del sistema.
@@ -261,7 +309,6 @@ export default function PacienteDashboard() {
                   Sí, cancelar
                 </button>
               </div>
-
             </div>
           </div>
         )}
