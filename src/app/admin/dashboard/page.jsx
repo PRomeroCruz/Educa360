@@ -12,22 +12,24 @@ import { EstadoCargando } from "@/components/EstadosUI";
 export function registrarLogSistema(tipo, usuario, detalle) {
     try {
         const logsActuales = JSON.parse(localStorage.getItem("logs_educa360") || "[]");
-        
+
         const ahora = new Date();
-        const fechaFormateada = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')} ${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+        const fechaFormateada = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")} ${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}:${String(ahora.getSeconds()).padStart(2, "0")}`;
 
         const nuevoLog = {
-            id: Date.now(),
+            id: Date.now() + Math.floor(Math.random() * 1000),
             fecha: fechaFormateada,
-            tipo: tipo.toUpperCase(),
+            tipo: (tipo || "SISTEMA").toUpperCase(),
             usuario: usuario || "sistema@educa360.test",
-            detalle: detalle
+            detalle: detalle,
         };
 
         const logsActualizados = [nuevoLog, ...logsActuales];
         localStorage.setItem("logs_educa360", JSON.stringify(logsActualizados));
+        return nuevoLog;
     } catch (error) {
         console.error("Error al registrar el log del sistema:", error);
+        return null;
     }
 }
 
@@ -60,7 +62,11 @@ export default function AdminLogsDashboardPage() {
     }, [authGuardLoading]);
 
     const handleCerrarSesion = async () => {
-        registrarLogSistema("AUTENTICACIÓN", user?.email || "adminsistema@educa360.test", "Cierre de sesión seguro realizado desde el panel de administración");
+        registrarLogSistema(
+            "AUTENTICACIÓN",
+            user?.email || "adminsistema@educa360.test",
+            "Cierre de sesión seguro realizado desde el panel de administración"
+        );
         await signOut(auth);
         router.push("/login");
     };
@@ -69,12 +75,11 @@ export default function AdminLogsDashboardPage() {
         const tipoLog = (log?.tipo || "").trim().toLowerCase();
         const catFiltro = categoriaSeleccionada.trim().toLowerCase();
 
-        const categoriaMatch = 
-            categoriaSeleccionada === "Todas las categorías" || 
-            tipoLog === catFiltro;
+        const categoriaMatch =
+            categoriaSeleccionada === "Todas las categorías" || tipoLog === catFiltro;
 
         const textoBusqueda = busqueda.trim().toLowerCase();
-        const textoMatch = 
+        const textoMatch =
             textoBusqueda === "" ||
             tipoLog.includes(textoBusqueda) ||
             (log?.usuario || "").toLowerCase().includes(textoBusqueda) ||
@@ -112,6 +117,13 @@ export default function AdminLogsDashboardPage() {
                             Auditoría en tiempo real de eventos de acceso, validaciones clínicas y seguridad institucional
                         </p>
                     </div>
+
+                    <a
+                        href="/admin/usuarios"
+                        className="inline-flex items-center justify-center px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl transition shrink-0"
+                    >
+                        Gestionar Usuarios y Roles →
+                    </a>
                 </div>
 
                 <Tarjeta>
@@ -182,7 +194,7 @@ export default function AdminLogsDashboardPage() {
                                 <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
                                     {logsFiltrados.map((log, index) => {
                                         const tipoLower = (log?.tipo || "").toLowerCase();
-                                        
+
                                         let badgeColor = "bg-slate-100 text-slate-700 border-slate-200";
                                         if (tipoLower.includes("seguridad")) {
                                             badgeColor = "bg-rose-50 text-rose-700 border-rose-200";
